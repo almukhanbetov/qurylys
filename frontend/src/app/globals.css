@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* QURYLYS design tokens: light background, dark-green actions and headings,
+   soft light-green surfaces. */
+@theme {
+  --color-brand-50: #f1f8f3;
+  --color-brand-100: #ddefe3;
+  --color-brand-200: #bcdfc8;
+  --color-brand-300: #8fc7a3;
+  --color-brand-400: #5ea97b;
+  --color-brand-500: #3c8b5c;
+  --color-brand-600: #2b7048;
+  --color-brand-700: #1e5b3a;
+  --color-brand-800: #17492f;
+  --color-brand-900: #123a26;
+  --color-brand-950: #092015;
+
+  --color-ink-50: #f7f8f7;
+  --color-ink-100: #eceeec;
+  --color-ink-200: #dadedb;
+  --color-ink-300: #bcc3be;
+  --color-ink-400: #8f9892;
+  --color-ink-500: #6b746e;
+  --color-ink-600: #535b55;
+  --color-ink-700: #3e443f;
+  --color-ink-800: #2a2f2b;
+  --color-ink-900: #1a1e1b;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-ink-50 text-ink-800 antialiased;
+  }
+  h1, h2, h3 {
+    @apply text-brand-900;
+  }
+}

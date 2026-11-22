@@ -1,0 +1,9 @@
+# Development override: publishes PostgreSQL on localhost only, so the API can
+# run on the host with `go run` and integration tests can reach a test database.
+#
+#   docker compose -f compose.yml -f compose.dev.yml up -d postgres
+
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${POSTGRES_DEV_PORT:-5442}:5432"

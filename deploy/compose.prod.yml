@@ -1,0 +1,114 @@
+# Production stack on the VPS (/opt/qurylys/compose.prod.yml).
+#
+# Runs only prebuilt images from GHCR. Nginx and PostgreSQL are the system
+# services on the host and are NOT started here. The API reaches PostgreSQL
+# through its Unix socket (/var/run/postgresql), so port 5432 stays closed.
+#
+# Image references are not stored here: deploy.sh passes them through
+# --env-file state/<release>.env (BACKEND_IMAGE, FRONTEND_IMAGE).
+# Application settings and secrets live in env/*.env (mode 600, never in git).
+#
+#   bin/deploy.sh deploy <backend-ref> <frontend-ref>   # normal path
+#   docker compose --env-file state/current.env -f compose.prod.yml ps
+
+name: qurylys
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+x-pg-socket: &pg-socket
+  # Read-only is enough to connect to an existing socket. The directory is
+  # bound as a whole, so the socket survives PostgreSQL restarts.
+  type: bind
+  source: /var/run/postgresql
+  target: /var/run/postgresql
+  read_only: true
+  bind:
+    create_host_path: false
+
+services:
+  api:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required (set by deploy.sh)}
+    pull_policy: never # deploy.sh pulls and verifies images first
+    restart: unless-stopped
+    <<: *hardening
+    env_file:
+      - path: env/api.env
+        required: true
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: ":8080"
+    volumes:
+      - *pg-socket
+    ports:
+      # Loopback only: reachable by the system Nginx, not from the network.
+      - "127.0.0.1:18080:8080"
+    networks: [app]
+    healthcheck:
+      # /ready also pings PostgreSQL; the API is "healthy" only when it can serve data.
+      test: ["CMD", "wget", "-q", "-T", "3", "-O", "/dev/null", "http://127.0.0.1:8080/api/v1/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+    logging: *logging
+
+  web:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required (set by deploy.sh)}
+    pull_policy: never
+    restart: unless-stopped
+    <<: *hardening
+    tmpfs:
+      # Next.js may write its runtime cache here; everything else is read-only.
+      - /app/.next/cache:size=64m,uid=10001,gid=10001,mode=0700
+      - /tmp:size=16m,mode=1777
+    environment:
+      # SSR calls the API inside the Docker network, not through Nginx.
+      API_INTERNAL_URL: http://api:8080/api/v1
+    ports:
+      - "127.0.0.1:13000:3000"
+    networks: [app]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # Static asset: proves the Next.js server answers without depending on the API.
+      test: ["CMD", "wget", "-q", "-T", "3", "-O", "/dev/null", "http://127.0.0.1:3000/icon.svg"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 20s
+    logging: *logging
+
+  # Explicit step only: `docker compose ... run --rm migrate` (deploy.sh does it
+  # after a verified backup). Never started by `up`.
+  migrate:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required (set by deploy.sh)}
+    pull_policy: never
+    profiles: [migrate]
+    <<: *hardening
+    command: ["migrate", "up"]
+    env_file:
+      - path: env/migrate.env
+        required: true
+    environment:
+      APP_ENV: production
+    volumes:
+      - *pg-socket
+    # Only the Unix socket is needed.
+    network_mode: none
+    restart: "no"
+    logging: *logging
+
+networks:
+  app: {}

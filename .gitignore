@@ -1,0 +1,58 @@
+# --- Secrets ------------------------------------------------------------------
+# Real env files anywhere in the tree. Templates (*.env.example) stay tracked.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.env
+!*.env.example
+
+# Keys, certificates, credentials
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+id_ecdsa*
+known_hosts
+.pgpass
+.docker/config.json
+
+# Database dumps and backups
+*.dump
+*.backup
+*.sql.gz
+*.sql.bz2
+*.sql.xz
+*.tar.gz
+backups/
+
+# --- Go -----------------------------------------------------------------------
+backend/*.test
+backend/*.out
+backend/coverage.*
+/backend/api
+/backend/migrate
+/backend/seed
+
+# --- Node / Next.js -----------------------------------------------------------
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+npm-debug.log*
+
+# --- OS / editors -------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

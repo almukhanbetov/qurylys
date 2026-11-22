@@ -1,0 +1,278 @@
+# CI/CD for QURYLYS.
+#
+#   pull_request       -> checks only (no registry access, no secrets)
+#   push to main       -> checks -> publish backend/frontend images to GHCR
+#   workflow_dispatch  -> checks -> publish -> (deploy=true) production deploy
+#                         of exactly this revision, using the digests built here
+#
+# Third-party actions are pinned to full commit SHAs (the tag is in the comment);
+# Dependabot (.github/dependabot.yml) proposes updates.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy this revision to production after checks and publish"
+        type: boolean
+        default: false
+
+# Least privilege by default; jobs that need more ask for it explicitly.
+permissions:
+  contents: read
+
+concurrency:
+  # One run per PR (newer pushes cancel older ones). Runs on main are never
+  # cancelled, so a publish or deploy cannot be interrupted halfway.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Keep in sync with backend/Dockerfile (golang:1.25-alpine3.24 = Go 1.25.14).
+  GO_VERSION: "1.25.14"
+  BACKEND_IMAGE: ghcr.io/almukhanbetov/qurylys-backend
+  FRONTEND_IMAGE: ghcr.io/almukhanbetov/qurylys-frontend
+
+jobs:
+  backend:
+    name: backend (${{ matrix.db.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          # Production: system PostgreSQL 16 on Ubuntu, libc provider, C.UTF-8 (glibc).
+          - name: pg16-libc-c-utf8
+            image: postgres:16@sha256:3950ad7c3148ca2175ef1b6c36c9efbf78957ae8fbe8b3a5d7c35af50500382f
+            initdb: --encoding=UTF8 --locale-provider=libc --locale=C.UTF-8
+          # Local development stack (compose.yml): PostgreSQL 17, builtin provider.
+          - name: pg17-builtin
+            image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+            initdb: --encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8
+    services:
+      postgres:
+        image: ${{ matrix.db.image }}
+        env:
+          POSTGRES_USER: qurylys
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: qurylys_test
+          POSTGRES_INITDB_ARGS: ${{ matrix.db.initdb }}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U qurylys -d qurylys_test" --health-interval 5s --health-timeout 3s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+      TEST_DATABASE_URL: postgres://qurylys:ci-only-password@127.0.0.1:5432/qurylys_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go mod verify
+      - run: go vet ./...
+      - run: go build ./...
+      - name: Unit and integration tests
+        run: go test -count=1 ./...
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          # Same version as the frontend/Dockerfile base image.
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: /api/v1
+
+  # Pull requests: make sure both images still build. Nothing is pushed and the
+  # job has no registry credentials.
+  images-build:
+    if: github.event_name == 'pull_request'
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build backend (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backend
+          platforms: linux/amd64
+          push: false
+      - name: Build frontend (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: frontend
+          platforms: linux/amd64
+          push: false
+          build-args: NEXT_PUBLIC_API_BASE_URL=/api/v1
+
+  publish:
+    # Only trusted code from main reaches the registry.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend_ref: ${{ steps.refs.outputs.backend_ref }}
+      frontend_ref: ${{ steps.refs.outputs.frontend_ref }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Schema version (highest migration number)
+        id: schema
+        run: |
+          v=$(find backend/migrations -maxdepth 1 -name '*.sql' -printf '%f\n' | sed -E 's#^0*([0-9]+)_.*#\1#' | sort -n | tail -1)
+          [[ $v =~ ^[0-9]+$ ]] || { echo "cannot determine schema version"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push backend
+        id: backend
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backend
+          platforms: linux/amd64
+          push: true
+          provenance: mode=min
+          tags: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            kz.qurylys.schema-version=${{ steps.schema.outputs.version }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+      - name: Build and push frontend
+        id: frontend
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: frontend
+          platforms: linux/amd64
+          push: true
+          provenance: mode=min
+          build-args: NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL || '/api/v1' }}
+          tags: ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+      - name: Record image references
+        id: refs
+        env:
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+          FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
+        run: |
+          for d in "$BACKEND_DIGEST" "$FRONTEND_DIGEST"; do
+            [[ $d =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "unexpected digest '$d'"; exit 1; }
+          done
+          backend_ref="$BACKEND_IMAGE:$GITHUB_SHA@$BACKEND_DIGEST"
+          frontend_ref="$FRONTEND_IMAGE:$GITHUB_SHA@$FRONTEND_DIGEST"
+          echo "backend_ref=$backend_ref" >> "$GITHUB_OUTPUT"
+          echo "frontend_ref=$frontend_ref" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Published images"
+            echo ""
+            echo "| image | reference |"
+            echo "|---|---|"
+            echo "| backend | \`$backend_ref\` |"
+            echo "| frontend | \`$frontend_ref\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    # Manual only: "Run workflow" on main with deploy=true. Uses the digests that
+    # this very run checked and published.
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    needs: [publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Required reviewers / branch rules are configured on the environment in GitHub.
+    environment: production
+    permissions: {}
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Configure SSH (key auth, pinned host key)
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+        run: |
+          for v in DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS DEPLOY_HOST DEPLOY_PORT DEPLOY_USER; do
+            [[ -n ${!v} ]] || { echo "::error::$v is not configured for the production environment"; exit 1; }
+          done
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host qurylys-prod
+            HostName $DEPLOY_HOST
+            Port $DEPLOY_PORT
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            UserKnownHostsFile ~/.ssh/known_hosts
+            StrictHostKeyChecking yes
+            BatchMode yes
+            ConnectTimeout 15
+            ServerAliveInterval 30
+          EOF
+          chmod 600 ~/.ssh/config
+          # Fails if the stored host key does not match the server.
+          ssh-keygen -F "[$DEPLOY_HOST]:$DEPLOY_PORT" -f ~/.ssh/known_hosts >/dev/null \
+            || { echo "::error::DEPLOY_KNOWN_HOSTS has no entry for [$DEPLOY_HOST]:$DEPLOY_PORT"; exit 1; }
+      - name: Deploy
+        env:
+          BACKEND_REF: ${{ needs.publish.outputs.backend_ref }}
+          FRONTEND_REF: ${{ needs.publish.outputs.frontend_ref }}
+        run: |
+          [[ -n $BACKEND_REF && -n $FRONTEND_REF ]] || { echo "::error::missing image references"; exit 1; }
+          # The server key is restricted to a forced command (bin/ssh-entry.sh),
+          # which accepts only "deploy <backend-ref> <frontend-ref>" or "status".
+          # shellcheck disable=SC2029 # expanding the refs locally is intended
+          ssh qurylys-prod deploy "$BACKEND_REF" "$FRONTEND_REF"
+          echo "Deployed \`$BACKEND_REF\` and \`$FRONTEND_REF\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

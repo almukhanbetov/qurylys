@@ -1,0 +1,37 @@
+# Dependencies and build output are recreated inside the image.
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+.git
+.github
+.vscode
+.idea
+
+# Real env files would be baked into the build by Next.js. Only the template
+# may enter the context (it is not read by `next build`).
+.env
+.env.*
+!.env.example
+
+# Keys, certificates, dumps
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.dump
+*.backup
+*.sql
+*.sql.gz
+*.tar.gz
+
+npm-debug.log*
+Dockerfile
+.dockerignore

@@ -1,0 +1,38 @@
+# Only sources, go.mod/go.sum and migrations are needed to build the image.
+.git
+.github
+.vscode
+.idea
+
+# Secrets: real env files, keys, certificates (templates stay in the repo, but
+# the build does not need them either).
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+id_ecdsa*
+.pgpass
+
+# Database dumps and backups
+*.dump
+*.backup
+*.sql.gz
+*.sql.bz2
+*.sql.xz
+*.tar.gz
+backups/
+
+# Build and test output
+/api
+/migrate
+/seed
+*.test
+*.out
+coverage.*
+Dockerfile
+.dockerignore

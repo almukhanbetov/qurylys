@@ -1,0 +1,12 @@
+# Proposes updates for pinned action SHAs and base-image digests.
+# Every update arrives as a pull request and goes through CI; nothing is merged automatically.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directories: [/backend, /frontend]
+    schedule:
+      interval: weekly
