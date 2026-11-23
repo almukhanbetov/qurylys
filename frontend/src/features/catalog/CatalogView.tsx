@@ -67,7 +67,7 @@ export function CatalogView({ categories }: { categories: CategoryNode[] }) {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[260px_1fr]">
-      <aside className="lg:sticky lg:top-36 lg:self-start">
+      <aside className="lg:sticky lg:top-36 lg:z-10 lg:self-start">
         <CategoryFilter
           categories={categories}
           active={query.category}
