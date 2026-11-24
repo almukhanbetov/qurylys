@@ -29,3 +29,12 @@ export function formatQuantity(value: string): string {
 export function htmlLang(locale: Locale): string {
   return locale === "ru" ? "ru" : "kk";
 }
+
+/** Date and time in Kazakhstan, independent of the visitor's device settings. */
+export function formatDate(iso: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === "ru" ? "ru-RU" : "kk-KZ", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Almaty",
+  }).format(new Date(iso));
+}

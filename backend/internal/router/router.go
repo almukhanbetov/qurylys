@@ -8,16 +8,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/qurylys/qurylys/backend/internal/auth"
 	"github.com/qurylys/qurylys/backend/internal/categories"
+	"github.com/qurylys/qurylys/backend/internal/companies"
 	"github.com/qurylys/qurylys/backend/internal/config"
+	"github.com/qurylys/qurylys/backend/internal/delivery"
 	"github.com/qurylys/qurylys/backend/internal/health"
 	"github.com/qurylys/qurylys/backend/internal/httpx"
 	"github.com/qurylys/qurylys/backend/internal/middleware"
 	"github.com/qurylys/qurylys/backend/internal/offers"
 	"github.com/qurylys/qurylys/backend/internal/products"
+	"github.com/qurylys/qurylys/backend/internal/ratelimit"
 )
 
-func New(cfg config.Config, db *sql.DB, log *slog.Logger) *gin.Engine {
+func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender) *gin.Engine {
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -31,11 +35,16 @@ func New(cfg config.Config, db *sql.DB, log *slog.Logger) *gin.Engine {
 		httpx.Error(c, http.StatusNotFound, "route_not_found", "Route not found")
 	})
 
-	v1 := r.Group("/api/v1")
+	v1 := r.Group("/api/v1", middleware.CSRF(cfg.CORSAllowedOrigins))
 	health.NewHandler(db, log).Register(v1)
 	categories.NewHandler(categories.NewService(categories.NewRepository(db)), log).Register(v1)
 	products.NewHandler(products.NewService(products.NewRepository(db)), log).Register(v1)
 	offers.NewHandler(offers.NewService(offers.NewRepository(db)), log).Register(v1)
+
+	limiter := ratelimit.New(db)
+	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db), sender, limiter, log, cfg.EmailDailyLimit), log, cfg.IsProduction())
+	authHandler.Register(v1)
+	companies.NewHandler(companies.NewService(companies.NewRepository(db), limiter), log).Register(v1, authHandler.RequireUser)
 
 	return r
 }

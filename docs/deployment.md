@@ -1,6 +1,6 @@
 # Production: CI/CD и VPS
 
-> **Статус:** конфигурация подготовлена и проверена локально. Push, публикация образов в GHCR и production-деплой **ещё не выполнялись**. HTTPS **не настроен** (домен неизвестен).
+> **Статус:** конфигурация подготовлена и проверена локально. Сайт работает на https://qurylys-b2b.kz; публикация этапа 1 — [release-stage1.md](release-stage1.md).
 
 ## Схема
 
@@ -245,13 +245,13 @@ sudo nginx -t && sudo systemctl reload nginx
 
 Проверьте, что шаблон не конфликтует с существующими сайтами (`server_name`, `default_server`).
 
-**HTTPS не настроен.** После того как домен будет указывать на сервер:
+**HTTPS** для `qurylys-b2b.kz` настроен 24.11.2026. Повторная настройка:
 1. `sudo install -d /var/www/letsencrypt`;
 2. `sudo certbot certonly --webroot -w /var/www/letsencrypt -d <ДОМЕН>`;
 3. раскомментировать блок 443 в шаблоне и включить редирект с 80;
 4. HSTS включать только после проверки HTTPS в браузере.
 
-До этого сайт работает только по HTTP.
+До этого сайт работает только по HTTP, вход в кабинет невозможен.
 
 ## 4. GitHub: Environment, Secrets, Variables
 
@@ -355,3 +355,20 @@ tail -n 20 /opt/qurylys/state/history.log
 | `failed to acquire lock` | параллельно идёт другая миграция (ждали `MIGRATE_LOCK_WAIT`) |
 | `pull failed` / `denied` | доступ к GHCR (3.7) |
 | `Host key verification failed` в Actions | `DEPLOY_KNOWN_HOSTS` не совпадает с сервером: проверьте отпечаток, а не отключайте проверку |
+
+## 10. Аккаунты и первый администратор
+
+- Пошаговая публикация: [release-stage1.md](release-stage1.md).
+- Миграции 00006–00007 только добавляют таблицы и необязательные столбцы: предыдущая версия с новой схемой работает (проверено локально: `ready`, каталог). Но метка схемы у старого образа — 5, поэтому автовосстановление и обычный `rollback` будут **отклонены**; нужен `rollback --force-schema`.
+- `CONTACT_DELIVERY=disabled` (по умолчанию): вход работает, регистрация и восстановление отвечают 503, пока не настроен SMTP ([email.md](email.md)). `local` в production — API не запустится.
+- Если роль API отличается от роли миграций, ей нужны права на новые таблицы (`SELECT, INSERT, UPDATE, DELETE`; на `audit_events` достаточно `SELECT, INSERT`).
+- Cookie сессии в production — `__Host-…; Secure`, поэтому **вход работает только по HTTPS**. До первого входа проверьте HTTPS (раздел 3.10).
+- Лимиты входа считаются по адресу клиента: системный Nginx обязан передавать `X-Forwarded-For`, как в шаблоне.
+
+Создание администратора (интерактивно на сервере, пароль не попадает в историю и аргументы):
+
+```bash
+cd /opt/qurylys
+read -rsp 'Password: ' P; echo
+printf '%s' "$P" | docker compose --env-file state/current.env -f compose.prod.yml exec -T api admin create -contact <EMAIL> -name "<ФИО>"; unset P
+```

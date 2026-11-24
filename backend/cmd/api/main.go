@@ -12,6 +12,7 @@ import (
 
 	"github.com/qurylys/qurylys/backend/internal/config"
 	"github.com/qurylys/qurylys/backend/internal/database"
+	"github.com/qurylys/qurylys/backend/internal/delivery"
 	"github.com/qurylys/qurylys/backend/internal/router"
 )
 
@@ -45,9 +46,11 @@ func run(log *slog.Logger) error {
 	}
 	defer db.Close()
 
+	sender := delivery.New(cfg.ContactDelivery, cfg.ContactLocalDir, cfg.SMTP, log)
+
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           router.New(cfg, db, log),
+		Handler:           router.New(cfg, db, log, sender),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -75,6 +78,7 @@ func run(log *slog.Logger) error {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return err
 	}
+	sender.Close(shutdownCtx)
 	log.Info("api stopped cleanly")
 	return nil
 }

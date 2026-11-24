@@ -4,7 +4,7 @@ B2B-маркетплейс строительных материалов для 
 
 > Все товары, цены и поставщики в базе — **демонстрационные** данные (`is_demo`), а не реальные предложения.
 
-Подробности: [docs/catalog.md](docs/catalog.md) (модель, API, правило минимальной цены), [docs/money.md](docs/money.md) (представление денег), [docs/deployment.md](docs/deployment.md) (CI/CD и production на VPS), [CLAUDE.md](CLAUDE.md) (правила архитектуры).
+Подробности: [docs/catalog.md](docs/catalog.md) (модель, API, правило минимальной цены), [docs/accounts.md](docs/accounts.md) (пользователи, компании, права), [docs/roadmap.md](docs/roadmap.md) (этапы), [docs/money.md](docs/money.md) (представление денег), [docs/deployment.md](docs/deployment.md) (CI/CD и production на VPS), [docs/release-stage1.md](docs/release-stage1.md) (публикация этапа 1), [CLAUDE.md](CLAUDE.md) (правила архитектуры).
 
 ## Требования (Ubuntu)
 
@@ -73,6 +73,22 @@ make web              # терминал 2: Next.js на http://localhost:3100
 
 `make help` — список всех команд.
 
+## Регистрация локально и первый администратор
+
+Реальная отправка email — [docs/email.md](docs/email.md). Локально коды пишутся в закрытый файл-«исходящие» (`CONTACT_DELIVERY=local`), в production этот режим запрещён:
+
+```bash
+docker compose exec api tail -n 5 /tmp/qurylys-outbox/outbox.jsonl   # Docker
+make outbox                                                           # API на хосте
+```
+
+Администратор создаётся только служебной командой, пароль читается из stdin:
+
+```bash
+read -rsp 'Password: ' P; echo
+printf '%s' "$P" | docker compose exec -T api admin create -contact admin@example.kz -name "Имя Фамилия"; unset P
+```
+
 ## Миграции
 
 ```bash
@@ -100,15 +116,17 @@ cd frontend && npm test # тесты форматирования денег/к�
 
 ```
 backend/
-  cmd/api, cmd/migrate, cmd/seed   # точки входа
+  cmd/api, cmd/migrate, cmd/seed, cmd/admin   # точки входа
   internal/
     config, database, middleware, router, httpx, health
+    auth, companies                # пользователи, сессии, компании, членство
+    audit, delivery, ratelimit, validate
     categories, products, offers   # model / handler / service / repository
     seed                           # demo.sql
   migrations/                      # Goose SQL
 frontend/src/
-  app/(public)/                    # главная, catalog, categories, products/[id]
-  components/{ui,layout}/  features/{catalog,products}/
+  app/(public)/                    # главная, catalog, categories, products/[id], login, register, forgot, account/*
+  components/{ui,layout}/  features/{catalog,products,auth,account}/
   lib/{api.ts,format.ts,i18n/}  hooks/  types/
 deploy/nginx/default.conf          # Nginx локального Docker-стека
 deploy/compose.prod.yml            # production: только образы из GHCR

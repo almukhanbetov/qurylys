@@ -26,6 +26,7 @@ import (
 	"github.com/pressly/goose/v3/lock"
 
 	"github.com/qurylys/qurylys/backend/internal/config"
+	"github.com/qurylys/qurylys/backend/internal/delivery"
 	"github.com/qurylys/qurylys/backend/internal/seed"
 	"github.com/qurylys/qurylys/backend/migrations"
 )
@@ -33,6 +34,7 @@ import (
 var (
 	testDB     *sql.DB
 	testRouter *gin.Engine
+	outboxDir  string
 )
 
 func TestMain(m *testing.M) {
@@ -70,9 +72,13 @@ func TestMain(m *testing.M) {
 
 	gin.SetMode(gin.TestMode)
 	testDB = db
-	testRouter = New(config.Config{AppEnv: config.EnvTest}, db, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	outboxDir, err = os.MkdirTemp("", "qurylys-outbox")
+	must(err)
+	testRouter = New(config.Config{AppEnv: config.EnvTest}, db, slog.New(slog.NewTextHandler(io.Discard, nil)),
+		delivery.New(delivery.ModeLocal, outboxDir, delivery.SMTPConfig{}, nil))
 
 	code := m.Run()
+	_ = os.RemoveAll(outboxDir)
 	_ = db.Close()
 	os.Exit(code)
 }

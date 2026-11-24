@@ -73,4 +73,73 @@ export type Offer = {
   updated_at: string;
 };
 
+export type CompanyRole = "owner" | "employee";
+
+export type Membership = {
+  id: number;
+  name: string;
+  role: CompanyRole;
+  is_buyer: boolean;
+  is_supplier: boolean;
+  status: "active" | "suspended";
+};
+
+export type Me = {
+  id: number;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  platform_roles: ("mrx" | "admin")[];
+  companies: Membership[];
+  active_company_id: number | null;
+  pending_invitations: number;
+};
+
+/** Channels that can currently receive confirmation codes. */
+export type DeliveryOptions = { email: boolean; phone: boolean };
+
+export type SessionInfo = {
+  id: number;
+  user_agent: string;
+  created_at: string;
+  last_seen_at: string;
+  current: boolean;
+};
+
+export type CompanyDetails = {
+  name: string;
+  bin: string;
+  city: string;
+  legal_address: string;
+  actual_address: string;
+  work_phone: string;
+  representative_name: string;
+  is_buyer: boolean;
+  is_supplier: boolean;
+};
+
+export type Company = CompanyDetails & { id: number; status: "active" | "suspended"; role: CompanyRole };
+
+export type CompanyMember = {
+  user_id: number;
+  full_name: string;
+  role: CompanyRole;
+  /** Present for owners only. */
+  email?: string | null;
+  phone?: string | null;
+  is_me: boolean;
+};
+
+export type CompanyInvitation = { id: number; contact: string; expires_at: string };
+
+export type MyInvitation = {
+  id: number;
+  company_name: string;
+  bin: string | null;
+  invited_by: string | null;
+  expires_at: string;
+};
+
+export type AdminUser = Pick<Me, "id" | "full_name" | "email" | "phone" | "platform_roles">;
+
 export type ApiErrorBody = { error: { code: string; message: string } };

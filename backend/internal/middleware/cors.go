@@ -10,7 +10,7 @@ import (
 // CORS allows cross-origin requests only from the explicit allowlist. It is used
 // for local development, where the Next.js dev server runs on another port.
 // Behind the shared Nginx the frontend and API share one origin and the list is empty.
-// The API is read-only and uses no cookies at this stage, so credentials are not allowed.
+// Listed origins may send the session cookie; CSRF protects state-changing requests.
 func CORS(allowed []string) gin.HandlerFunc {
 	set := make(map[string]struct{}, len(allowed))
 	for _, o := range allowed {
@@ -37,9 +37,10 @@ func CORS(allowed []string) gin.HandlerFunc {
 
 		h := c.Writer.Header()
 		h.Set("Access-Control-Allow-Origin", origin)
+		h.Set("Access-Control-Allow-Credentials", "true")
 		if c.Request.Method == http.MethodOptions {
-			h.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-			h.Set("Access-Control-Allow-Headers", "Accept, Content-Type, Accept-Language")
+			h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", "Accept, Content-Type, Accept-Language, "+CSRFHeader)
 			h.Set("Access-Control-Max-Age", "600")
 			c.AbortWithStatus(http.StatusNoContent)
 			return

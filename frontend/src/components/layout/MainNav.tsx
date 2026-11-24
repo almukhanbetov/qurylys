@@ -64,7 +64,7 @@ export function MainNav() {
 }
 
 /** Phone menu: a button in the header row; the panel drops below the sticky header. */
-export function MobileMenu() {
+export function MobileMenu({ signedIn }: { signedIn: boolean }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -88,6 +88,14 @@ export function MobileMenu() {
         className="absolute inset-x-0 top-full max-h-[70vh] overflow-y-auto border-t border-white/10 bg-brand-900 px-4 py-2 shadow-lg"
       >
         <NavItems onNavigate={close} />
+        <Link
+          href={signedIn ? "/account" : "/login"}
+          onClick={close}
+          className="mt-1 flex items-center gap-2 border-t border-white/10 px-3 py-3 text-base font-semibold text-accent-400"
+        >
+          <Icon name="user" className="h-5 w-5" />
+          {signedIn ? t.account.title : t.header.login}
+        </Link>
       </nav>
     </div>
   );

@@ -1,9 +1,19 @@
 import type {
+  AdminUser,
   CategoryNode,
+  Company,
+  CompanyDetails,
+  CompanyInvitation,
+  CompanyMember,
+  CompanyRole,
+  Me,
+  DeliveryOptions,
+  MyInvitation,
   Offer,
   ProductDetail,
   ProductPage,
   ProductSort,
+  SessionInfo,
 } from "@/types/api";
 
 /** Thrown for any failed API call. status 0 means a network error. */
@@ -30,19 +40,38 @@ function baseUrl(): string {
   return process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1";
 }
 
-async function request<T>(path: string, init?: { signal?: AbortSignal }): Promise<T> {
+type RequestOptions = {
+  signal?: AbortSignal;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
+  /** Server-side rendering only: the visitor's session cookie. */
+  cookie?: string;
+};
+
+async function request<T>(path: string, init: RequestOptions = {}): Promise<T> {
+  const { signal, method = "GET", body: payload, cookie } = init;
+  const headers: Record<string, string> = { Accept: "application/json" };
+  // Required by the API for state-changing requests (CSRF protection).
+  if (method !== "GET") headers["X-Qurylys-Csrf"] = "1";
+  if (payload !== undefined) headers["Content-Type"] = "application/json";
+  if (cookie) headers.Cookie = cookie;
   let res: Response;
   try {
     res = await fetch(baseUrl() + path, {
-      headers: { Accept: "application/json" },
+      method,
+      headers,
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+      // Needed in development, where the API runs on another port.
+      credentials: "include",
       cache: "no-store",
-      signal: init?.signal,
+      signal,
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
     throw new ApiError(0, "network_error", err instanceof Error ? err.message : "Network error");
   }
 
+  if (res.status === 204) return undefined as T;
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const e = (body as { error?: { code?: string; message?: string } } | null)?.error;
@@ -77,4 +106,56 @@ export const api = {
   product: (id: number) => request<ProductDetail>(`/products/${id}`),
   offers: (productId: number, signal?: AbortSignal) =>
     request<Offer[]>(`/products/${productId}/offers`, { signal }),
+};
+
+const post = <T = void>(path: string, body?: unknown) => request<T>(path, { method: "POST", body });
+type Challenge = { challenge: string };
+
+export const authApi = {
+  options: (signal?: AbortSignal) => request<DeliveryOptions>("/auth/options", { signal }),
+  register: (b: { full_name: string; contact: string; password: string }) => post<Challenge>("/auth/register", b),
+  confirmRegistration: (b: Challenge & { code: string }) => post("/auth/register/confirm", b),
+  login: (b: { contact: string; password: string }) => post("/auth/login", b),
+  logout: () => post("/auth/logout"),
+  forgot: (contact: string) => post<Challenge>("/auth/password/forgot", { contact }),
+  reset: (b: Challenge & { code: string; password: string }) => post("/auth/password/reset", b),
+};
+
+export const accountApi = {
+  me: (cookie: string, signal?: AbortSignal) => request<Me>("/me", { cookie, signal }),
+  updateProfile: (full_name: string) => request<void>("/me", { method: "PATCH", body: { full_name } }),
+  changePassword: (current_password: string, password: string) => post("/me/password", { current_password, password }),
+  startContact: (contact: string, current_password: string) =>
+    post<Challenge>("/me/contacts", { contact, current_password }),
+  confirmContact: (b: Challenge & { code: string }) => post("/me/contacts/confirm", b),
+  sessions: (signal?: AbortSignal) => request<SessionInfo[]>("/me/sessions", { signal }),
+  endSession: (id: number) => request<void>(`/me/sessions/${id}`, { method: "DELETE" }),
+  endOtherSessions: () => post("/me/sessions/revoke-others"),
+  setActiveCompany: (company_id: number) =>
+    request<void>("/me/active-company", { method: "PUT", body: { company_id } }),
+  invitations: (signal?: AbortSignal) => request<MyInvitation[]>("/me/invitations", { signal }),
+  answerInvitation: (id: number, accept: boolean) => post(`/me/invitations/${id}/${accept ? "accept" : "decline"}`),
+};
+
+export const companyApi = {
+  create: (d: CompanyDetails) => post<{ id: number }>("/companies", d),
+  get: (id: number, signal?: AbortSignal) => request<Company>(`/companies/${id}`, { signal }),
+  update: (id: number, body: CompanyDetails) => request<void>(`/companies/${id}`, { method: "PUT", body }),
+  members: (id: number, signal?: AbortSignal) => request<CompanyMember[]>(`/companies/${id}/members`, { signal }),
+  setRole: (id: number, userId: number, role: CompanyRole) =>
+    request<void>(`/companies/${id}/members/${userId}`, { method: "PATCH", body: { role } }),
+  removeMember: (id: number, userId: number) =>
+    request<void>(`/companies/${id}/members/${userId}`, { method: "DELETE" }),
+  invitations: (id: number, signal?: AbortSignal) =>
+    request<CompanyInvitation[]>(`/companies/${id}/invitations`, { signal }),
+  invite: (id: number, contact: string) => post(`/companies/${id}/invitations`, { contact }),
+  cancelInvitation: (id: number, invitationId: number) =>
+    request<void>(`/companies/${id}/invitations/${invitationId}`, { method: "DELETE" }),
+};
+
+export const adminApi = {
+  users: (q: string, signal?: AbortSignal) =>
+    request<AdminUser[]>(`/admin/users?q=${encodeURIComponent(q)}`, { signal }),
+  setMrx: (id: number, enabled: boolean) =>
+    request<void>(`/admin/users/${id}/mrx`, { method: "PUT", body: { enabled } }),
 };

@@ -29,6 +29,13 @@ seed-docker: ## Load demo data into the Docker database (manual step)
 	$(COMPOSE) run --rm seed
 
 # --- Host development -----------------------------------------------------------
+.PHONY: outbox admin-create
+outbox: ## Show the latest local test codes (API on the host)
+	@$(LOAD_ENV) && tail -n 5 "$${CONTACT_LOCAL_DIR:-$${TMPDIR:-/tmp}/qurylys-outbox}/outbox.jsonl"
+
+admin-create: ## Create an administrator: make admin-create CONTACT=... NAME="..." (password is asked)
+	@$(LOAD_ENV) && read -rsp 'Password: ' P && echo && cd backend && printf '%s' "$$P" | $(GO) run ./cmd/admin create -contact "$(CONTACT)" -name "$(NAME)"
+
 .PHONY: db-up db-down migrate-up migrate-down migrate-status seed api web
 db-up: ## Start only PostgreSQL, published on 127.0.0.1:$POSTGRES_DEV_PORT
 	$(COMPOSE_DEV) up -d --wait postgres

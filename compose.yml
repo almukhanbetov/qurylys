@@ -57,6 +57,17 @@ services:
       HTTP_ADDR: ":8080"
       # Same origin through Nginx: no CORS needed.
       CORS_ALLOWED_ORIGINS: ""
+      # Test outbox inside the container; the API refuses "local" in production.
+      CONTACT_DELIVERY: ${CONTACT_DELIVERY:-local}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_TLS: ${SMTP_TLS:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-}
+      SMTP_REPLY_TO: ${SMTP_REPLY_TO:-}
+      EMAIL_DAILY_LIMIT: ${EMAIL_DAILY_LIMIT:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

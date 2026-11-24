@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 // https://commons.wikimedia.org/wiki/File:Bricks_for_construction.jpg
 import heroPhoto from "@/assets/hero-bricks.webp";
 import { Icon, categoryIcon } from "@/components/ui/Icon";
-import { ButtonLink, UnavailableButton } from "@/components/ui/Button";
+import { ButtonLink } from "@/components/ui/Button";
 import { SectionError } from "@/components/ui/RetryButton";
 import { EmptyState } from "@/components/ui/StateMessage";
 import { ProductCard, ProductGrid } from "@/features/products/ProductCard";
@@ -131,9 +131,9 @@ export default async function HomePage() {
             <h2 id="home-suppliers" className="text-2xl font-bold text-white sm:text-3xl">{t.home.suppliersTitle}</h2>
             <p className="mt-3 max-w-2xl text-brand-100">{t.home.suppliersText}</p>
             <div className="mt-6">
-              <UnavailableButton soonLabel={t.common.soon} title={t.common.stageNotice}>
+              <ButtonLink href="/register" className="ring-1 ring-white/30">
                 {t.home.suppliersCta}
-              </UnavailableButton>
+              </ButtonLink>
             </div>
           </div>
           <ul className="space-y-3">

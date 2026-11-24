@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { getMeOrNull } from "@/lib/session";
 import { getI18n } from "@/lib/i18n/server";
 import { Icon } from "@/components/ui/Icon";
 import { Logo } from "./Logo";
@@ -7,6 +9,7 @@ import { MainNav, MobileMenu } from "./MainNav";
 
 export async function Header() {
   const { t } = await getI18n();
+  const signedIn = (await getMeOrNull()) !== null;
 
   return (
     <header className="sticky top-0 z-30 bg-brand-900 text-white">
@@ -18,7 +21,7 @@ export async function Header() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          {/* Cart and account arrive in stage 2: visibly disabled, not fake. */}
+          {/* The cart arrives in a later stage: visibly disabled, not fake. */}
           <span
             aria-disabled="true"
             title={`${t.header.cart} — ${t.common.stageNotice}`}
@@ -29,17 +32,15 @@ export async function Header() {
               {t.header.cart} — {t.common.stageNotice}
             </span>
           </span>
-          <span
-            aria-disabled="true"
-            title={t.common.stageNotice}
-            className="hidden cursor-not-allowed items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold text-brand-200 lg:flex"
+          <Link
+            href={signedIn ? "/account" : "/login"}
+            className="hidden min-h-11 items-center gap-2 rounded-xl bg-white/10 px-3 text-sm font-semibold hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-accent-400 md:flex"
           >
             <Icon name="user" className="h-4 w-4" />
-            {t.header.login}
-            <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase">{t.common.soon}</span>
-          </span>
+            {signedIn ? t.account.title : t.header.login}
+          </Link>
           <LanguageSwitcher />
-          <MobileMenu />
+          <MobileMenu signedIn={signedIn} />
         </div>
       </div>
       <MainNav />

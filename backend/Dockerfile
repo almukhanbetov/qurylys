@@ -1,4 +1,4 @@
-# One image, three binaries: api (default), migrate, seed.
+# One image, four binaries: api (default), migrate, seed, admin.
 # Base images are pinned by digest; Dependabot (docker ecosystem) proposes updates.
 # Go must stay in sync with .github/workflows/ci.yml (GO_VERSION).
 FROM golang:1.25-alpine3.24@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 AS build
@@ -12,7 +12,8 @@ COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api && \
     go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate && \
-    go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed
+    go build -trimpath -ldflags="-s -w" -o /out/seed ./cmd/seed && \
+    go build -trimpath -ldflags="-s -w" -o /out/admin ./cmd/admin
 
 FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 # ca-certificates: outgoing TLS; tzdata: Asia/Almaty etc.; busybox wget is used by the healthcheck.

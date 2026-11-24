@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/qurylys/qurylys/backend/internal/delivery"
 )
 
 const (
@@ -30,6 +33,14 @@ type Config struct {
 	// CORSAllowedOrigins is an explicit allowlist. Empty means CORS is disabled,
 	// which is the expected mode behind the shared Nginx (same origin).
 	CORSAllowedOrigins []string
+
+	// ContactDelivery: "disabled" (default), "smtp", or "local" (test outbox file, never in production).
+	ContactDelivery string
+	ContactLocalDir string
+	SMTP            delivery.SMTPConfig
+	// EmailDailyLimit caps code requests per day across all visitors (0 = no cap),
+	// so abuse cannot get the mailbox suspended.
+	EmailDailyLimit int
 }
 
 func (c Config) IsProduction() bool { return c.AppEnv == EnvProduction }
@@ -60,6 +71,33 @@ func Load() (Config, error) {
 	cfg.DBConnMaxLifetime = getDuration("DB_CONN_MAX_LIFETIME", 30*time.Minute, &errs)
 	cfg.DBConnMaxIdleTime = getDuration("DB_CONN_MAX_IDLE_TIME", 5*time.Minute, &errs)
 	cfg.CORSAllowedOrigins = getList("CORS_ALLOWED_ORIGINS")
+
+	cfg.ContactDelivery = getString("CONTACT_DELIVERY", "disabled")
+	cfg.ContactLocalDir = getString("CONTACT_LOCAL_DIR", filepath.Join(os.TempDir(), "qurylys-outbox"))
+	switch cfg.ContactDelivery {
+	case delivery.ModeDisabled:
+	case delivery.ModeSMTP:
+		cfg.SMTP = delivery.SMTPConfig{
+			Host:     getString("SMTP_HOST", ""),
+			Port:     getString("SMTP_PORT", "587"),
+			TLS:      getString("SMTP_TLS", delivery.TLSStartTLS),
+			Username: getString("SMTP_USERNAME", ""),
+			Password: getString("SMTP_PASSWORD", ""),
+			FromName: getString("SMTP_FROM_NAME", "QURYLYS B2B"),
+			ReplyTo:  getString("SMTP_REPLY_TO", ""),
+		}
+		cfg.SMTP.From = getString("SMTP_FROM", cfg.SMTP.Username)
+		cfg.EmailDailyLimit = getInt("EMAIL_DAILY_LIMIT", 400, &errs)
+		if err := cfg.SMTP.Validate(); err != nil {
+			errs = append(errs, err)
+		}
+	case delivery.ModeLocal:
+		if cfg.IsProduction() {
+			errs = append(errs, errors.New("CONTACT_DELIVERY=local is not allowed when APP_ENV=production"))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("CONTACT_DELIVERY must be disabled, smtp or local, got %q", cfg.ContactDelivery))
+	}
 
 	for _, o := range cfg.CORSAllowedOrigins {
 		if o == "*" {
