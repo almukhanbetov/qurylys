@@ -3,14 +3,14 @@ import { Icon } from "@/components/ui/Icon";
 import { Logo } from "./Logo";
 import { SearchForm } from "./SearchForm";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { MainNav } from "./MainNav";
+import { MainNav, MobileMenu } from "./MainNav";
 
 export async function Header() {
   const { t } = await getI18n();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-ink-100 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6 md:flex-nowrap md:gap-6">
+    <header className="sticky top-0 z-30 bg-brand-900 text-white">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 sm:px-6 md:flex-nowrap md:gap-6">
         <Logo suffix={t.header.logoSuffix} />
 
         <div className="order-last w-full md:order-none md:flex-1">
@@ -22,7 +22,7 @@ export async function Header() {
           <span
             aria-disabled="true"
             title={`${t.header.cart} — ${t.common.stageNotice}`}
-            className="relative grid h-11 w-11 cursor-not-allowed place-items-center rounded-xl text-ink-400"
+            className="hidden h-11 w-11 cursor-not-allowed place-items-center rounded-xl text-brand-300 sm:grid"
           >
             <Icon name="cart" className="h-6 w-6" />
             <span className="sr-only">
@@ -32,13 +32,14 @@ export async function Header() {
           <span
             aria-disabled="true"
             title={t.common.stageNotice}
-            className="hidden cursor-not-allowed items-center gap-2 rounded-xl bg-ink-100 px-3 py-2.5 text-sm font-semibold text-ink-500 lg:flex"
+            className="hidden cursor-not-allowed items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold text-brand-200 lg:flex"
           >
             <Icon name="user" className="h-4 w-4" />
             {t.header.login}
-            <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase">{t.common.soon}</span>
+            <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase">{t.common.soon}</span>
           </span>
           <LanguageSwitcher />
+          <MobileMenu />
         </div>
       </div>
       <MainNav />

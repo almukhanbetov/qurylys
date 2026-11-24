@@ -11,7 +11,7 @@ export async function Footer() {
     <footer className="mt-16 bg-brand-950 text-brand-100">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-3">
         <div className="space-y-4">
-          <div className="inline-flex rounded-xl bg-white px-3 py-2">
+          <div className="inline-flex">
             <Logo suffix={t.header.logoSuffix} />
           </div>
           <p className="max-w-sm text-sm text-brand-200">{t.footer.about}</p>

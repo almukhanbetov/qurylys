@@ -1,8 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getI18n } from "@/lib/i18n/server";
 import { format, pick } from "@/lib/i18n";
 import { api } from "@/lib/api";
-import { SearchForm } from "@/components/layout/SearchForm";
+// Photo: "Bricks for construction" by Saral Shots, CC0, cropped.
+// https://commons.wikimedia.org/wiki/File:Bricks_for_construction.jpg
+import heroPhoto from "@/assets/hero-bricks.webp";
 import { Icon, categoryIcon } from "@/components/ui/Icon";
 import { ButtonLink, UnavailableButton } from "@/components/ui/Button";
 import { SectionError } from "@/components/ui/RetryButton";
@@ -22,48 +25,42 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Hero */}
-      <section className="bg-gradient-to-b from-brand-50 to-ink-50">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 md:py-20 lg:grid-cols-[1.2fr_1fr]">
-          <div>
-            <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+      {/* Hero: text on dark green, photo on the right (below the text on phones) */}
+      <section className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 sm:pt-6" aria-labelledby="home-hero">
+        <div className="grid overflow-hidden rounded-2xl bg-brand-900 md:grid-cols-2">
+          <div className="p-6 sm:p-8 lg:p-12">
+            <h1
+              id="home-hero"
+              className="text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl"
+            >
               {t.home.heroTitle}
             </h1>
-            <p className="mt-4 max-w-xl text-base text-ink-600 sm:text-lg">{t.home.heroText}</p>
-            <div className="mt-8 max-w-xl">
-              <SearchForm
-                size="lg"
-                label={t.home.heroSearchLabel}
-                placeholder={t.header.searchPlaceholder}
-                buttonLabel={t.header.searchButton}
-              />
-            </div>
-            <div className="mt-4">
-              <ButtonLink href="/catalog" variant="ghost">
-                {t.home.heroCta}
-                <Icon name="chevronRight" className="h-4 w-4" />
-              </ButtonLink>
-            </div>
+            <span aria-hidden="true" className="mt-4 block h-1 w-20 rounded-full bg-accent-400" />
+            <p className="mt-4 max-w-xl text-sm text-brand-100 sm:text-base">{t.home.heroText}</p>
+            <ButtonLink href="/catalog" className="mt-6 ring-1 ring-white/30">
+              {t.home.heroCta}
+              <Icon name="chevronRight" className="h-4 w-4" />
+            </ButtonLink>
           </div>
-          <div aria-hidden="true" className="hidden lg:block">
-            <div className="grid grid-cols-2 gap-4">
-              {(["bricks", "layers", "beam", "roof"] as const).map((name, i) => (
-                <div
-                  key={name}
-                  className={`grid aspect-square place-items-center rounded-3xl ${
-                    i % 3 === 0 ? "bg-brand-700 text-brand-100" : "bg-white text-brand-600 ring-1 ring-brand-100"
-                  }`}
-                >
-                  <Icon name={name} className="h-16 w-16" />
-                </div>
-              ))}
-            </div>
+          <div className="relative min-h-40 md:min-h-72">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-accent-400 md:[clip-path:polygon(18%_0,100%_0,100%_100%,0_100%)]"
+            />
+            {/* Already optimized WebP, so it is served as is with immutable caching. */}
+            <Image
+              src={heroPhoto}
+              alt=""
+              preload
+              unoptimized
+              className="absolute inset-x-0 bottom-0 top-1 h-[calc(100%-0.25rem)] w-full object-cover md:top-0 md:h-full md:[clip-path:polygon(21%_0,100%_0,100%_100%,3%_100%)]"
+            />
           </div>
         </div>
       </section>
 
       {/* Categories */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6" aria-labelledby="home-categories">
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10" aria-labelledby="home-categories">
         <div className="flex items-end justify-between gap-4">
           <h2 id="home-categories" className="text-2xl font-bold">{t.home.categoriesTitle}</h2>
           <Link href="/categories" className="text-sm font-semibold text-brand-700 hover:underline">
@@ -81,12 +78,12 @@ export default async function HomePage() {
                 <li key={c.id}>
                   <Link
                     href={`/catalog?category=${c.slug}`}
-                    className="flex h-full flex-col gap-3 rounded-2xl bg-white p-4 ring-1 ring-ink-100 transition hover:ring-brand-300 hover:shadow-md hover:shadow-brand-900/5"
+                    className="group flex h-full flex-col items-center gap-2 rounded-2xl border border-ink-200 bg-white p-4 text-center transition-colors hover:border-brand-700 hover:bg-brand-100 focus-visible:border-brand-700 focus-visible:bg-brand-100 focus-visible:outline-2 focus-visible:outline-brand-700"
                   >
-                    <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-700">
-                      <Icon name={categoryIcon(c.slug)} className="h-6 w-6" />
+                    <span className="grid h-12 w-12 place-items-center text-brand-700">
+                      <Icon name={categoryIcon(c.slug)} className="h-9 w-9" />
                     </span>
-                    <span className="text-sm font-semibold text-ink-900">{pick(locale, c.name_kk, c.name_ru)}</span>
+                    <span className="w-full text-sm wrap-break-word font-semibold text-ink-900">{pick(locale, c.name_kk, c.name_ru)}</span>
                     <span className="mt-auto text-xs text-ink-500">
                       {format(t.home.productsCount, { count: c.product_count })}
                     </span>
@@ -129,7 +126,7 @@ export default async function HomePage() {
 
       {/* For suppliers */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6" aria-labelledby="home-suppliers">
-        <div className="grid gap-8 rounded-3xl bg-brand-800 p-8 text-white sm:p-10 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+        <div className="grid gap-8 rounded-2xl bg-brand-900 p-6 text-white sm:p-10 lg:grid-cols-[1.3fr_1fr] lg:items-center">
           <div>
             <h2 id="home-suppliers" className="text-2xl font-bold text-white sm:text-3xl">{t.home.suppliersTitle}</h2>
             <p className="mt-3 max-w-2xl text-brand-100">{t.home.suppliersText}</p>
@@ -141,7 +138,7 @@ export default async function HomePage() {
           </div>
           <ul className="space-y-3">
             {[t.home.suppliersPoint1, t.home.suppliersPoint2, t.home.suppliersPoint3].map((point) => (
-              <li key={point} className="flex items-start gap-3 rounded-2xl bg-brand-700/60 p-4">
+              <li key={point} className="flex items-start gap-3 rounded-2xl bg-brand-800 p-4">
                 <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-800">
                   <Icon name="check" className="h-4 w-4" />
                 </span>

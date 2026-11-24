@@ -45,9 +45,9 @@ export default async function CategoriesPage() {
       ) : (
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tree.map((root) => (
-            <li key={root.id} className="rounded-2xl bg-white p-5 ring-1 ring-ink-100">
+            <li key={root.id} className="rounded-2xl border border-ink-200 bg-white p-5 transition-colors hover:border-brand-700">
               <Link href={`/catalog?category=${root.slug}`} className="flex items-center gap-3 group">
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-700">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-100 text-brand-700">
                   <Icon name={categoryIcon(root.slug)} className="h-6 w-6" />
                 </span>
                 <span>

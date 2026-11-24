@@ -54,11 +54,11 @@ export function CategoryFilter({
         aria-current={active === n.slug ? "true" : undefined}
         style={{ "--indent": `${0.75 + n.depth * 0.9}rem` } as CSSProperties}
         className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg py-1.5 pl-(--indent) pr-2 text-left text-sm transition-colors lg:any-pointer-fine:pl-3 ${
-          active === n.slug ? "bg-brand-700 font-semibold text-white" : "text-ink-700 hover:bg-brand-50 hover:text-brand-800"
+          active === n.slug ? "bg-brand-100 font-semibold text-brand-900" : "text-ink-700 hover:bg-brand-50 hover:text-brand-800"
         } ${n.depth === 0 ? "font-medium" : ""}`}
       >
         <span>{pick(locale, n.name_kk, n.name_ru)}</span>
-        <span className={`text-xs ${active === n.slug ? "text-brand-100" : "text-ink-400"}`}>{n.product_count}</span>
+        <span className={`text-xs ${active === n.slug ? "text-brand-800" : "text-ink-500"}`}>{n.product_count}</span>
       </button>
       {n.children.length > 0 ? (
         <ul
@@ -82,7 +82,7 @@ export function CategoryFilter({
             onClick={() => onSelect(undefined)}
             aria-current={!active ? "true" : undefined}
             className={`w-full cursor-pointer rounded-lg px-3 py-1.5 text-left text-sm font-medium ${
-              !active ? "bg-brand-700 text-white" : "text-ink-700 hover:bg-brand-50"
+              !active ? "bg-brand-100 font-semibold text-brand-900" : "text-ink-700 hover:bg-brand-50"
             }`}
           >
             {t.catalog.allCategories}

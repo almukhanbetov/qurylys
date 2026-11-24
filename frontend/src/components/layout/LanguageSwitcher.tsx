@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { LOCALES, type Locale } from "@/lib/i18n";
 import { setLocale } from "@/lib/i18n/actions";
 
-const labels: Record<Locale, string> = { kk: "ҚАЗ", ru: "РУС" };
+const labels: Record<Locale, string> = { kk: "KZ", ru: "RU" };
 
 /**
  * Stores the choice via a Server Action; the route re-renders on the server,
@@ -24,7 +24,7 @@ export function LanguageSwitcher() {
     <div
       role="group"
       aria-label={t.header.language}
-      className={`flex rounded-xl bg-ink-100 p-1 text-xs font-bold ${pending ? "opacity-60" : ""}`}
+      className={`flex rounded-xl bg-white/10 p-1 text-xs font-bold ${pending ? "opacity-60" : ""}`}
     >
       {LOCALES.map((l) => (
         <button
@@ -34,8 +34,8 @@ export function LanguageSwitcher() {
           disabled={pending}
           aria-pressed={l === locale}
           lang={l}
-          className={`rounded-lg px-2.5 py-1.5 transition-colors ${
-            l === locale ? "bg-white text-brand-800 shadow-sm" : "text-ink-500 hover:text-brand-800"
+          className={`min-h-9 cursor-pointer rounded-lg px-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-accent-400 ${
+            l === locale ? "bg-white text-brand-900" : "text-brand-100 hover:text-white"
           }`}
         >
           {labels[l]}

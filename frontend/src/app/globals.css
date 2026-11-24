@@ -1,30 +1,33 @@
 @import "tailwindcss";
 
-/* QURYLYS design tokens: light background, dark-green actions and headings,
-   soft light-green surfaces. */
+/* QURYLYS design tokens: light background, dark-green header and banner,
+   green actions, soft light-green selection, amber accent. */
 @theme {
-  --color-brand-50: #f1f8f3;
-  --color-brand-100: #ddefe3;
-  --color-brand-200: #bcdfc8;
-  --color-brand-300: #8fc7a3;
-  --color-brand-400: #5ea97b;
-  --color-brand-500: #3c8b5c;
-  --color-brand-600: #2b7048;
-  --color-brand-700: #1e5b3a;
-  --color-brand-800: #17492f;
-  --color-brand-900: #123a26;
-  --color-brand-950: #092015;
+  --color-brand-50: #f2f8f5;
+  --color-brand-100: #e5f1eb;
+  --color-brand-200: #c8e0d4;
+  --color-brand-300: #9bc6b2;
+  --color-brand-400: #64a287;
+  --color-brand-500: #3c8469;
+  --color-brand-600: #2b7760;
+  --color-brand-700: #216b54;
+  --color-brand-800: #1a5442;
+  --color-brand-900: #123d32;
+  --color-brand-950: #0c2a22;
 
-  --color-ink-50: #f7f8f7;
-  --color-ink-100: #eceeec;
-  --color-ink-200: #dadedb;
-  --color-ink-300: #bcc3be;
-  --color-ink-400: #8f9892;
-  --color-ink-500: #6b746e;
-  --color-ink-600: #535b55;
-  --color-ink-700: #3e443f;
-  --color-ink-800: #2a2f2b;
-  --color-ink-900: #1a1e1b;
+  --color-ink-50: #f5f7f5;
+  --color-ink-100: #e6ebe8;
+  --color-ink-200: #d5dcd8;
+  --color-ink-300: #b8c2bd;
+  --color-ink-400: #7d8a83;
+  --color-ink-500: #5f6c65;
+  --color-ink-600: #4c5852;
+  --color-ink-700: #38443e;
+  --color-ink-800: #2a362f;
+  --color-ink-900: #1f2a25;
+
+  /* Amber: logo and promo accents only. */
+  --color-accent-400: #e7b44e;
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
 }
@@ -34,9 +37,9 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-ink-50 text-ink-800 antialiased;
+    @apply bg-ink-50 text-ink-900 antialiased;
   }
   h1, h2, h3 {
-    @apply text-brand-900;
+    @apply text-ink-900;
   }
 }
