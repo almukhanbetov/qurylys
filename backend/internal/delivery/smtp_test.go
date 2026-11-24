@@ -276,6 +276,12 @@ func TestTemplates(t *testing.T) {
 			t.Errorf("%s: incomplete", locale)
 		}
 	}
+	for kind := range verificationTemplates {
+		subj, text := mailText(Message{Kind: kind, Locale: "ru"})
+		if subj == "" || strings.Contains(text, "%") || strings.Contains(text, "http") {
+			t.Errorf("%s: %q %q", kind, subj, text)
+		}
+	}
 	if _, err := buildMail(SMTPConfig{From: "a@b.kz"}, Message{To: "a@b.kz\r\nBcc: x@y.kz", Kind: KindTest}, time.Now()); err == nil {
 		t.Error("header injection accepted")
 	}

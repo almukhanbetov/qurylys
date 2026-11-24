@@ -274,8 +274,9 @@ func (r *Repository) me(ctx context.Context, p Principal) (Me, error) {
 		return m, fmt.Errorf("me: %w", err)
 	}
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT c.id, c.name, cm.role, c.is_buyer, c.is_supplier, c.status
+		SELECT c.id, c.name, cm.role, c.is_buyer, c.is_supplier, c.status, v.status
 		FROM company_members cm JOIN companies c ON c.id = cm.company_id
+		JOIN company_verification v ON v.company_id = c.id
 		WHERE cm.user_id = $1 ORDER BY c.name, c.id`, p.UserID)
 	if err != nil {
 		return m, err
@@ -283,7 +284,7 @@ func (r *Repository) me(ctx context.Context, p Principal) (Me, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var x Membership
-		if err := rows.Scan(&x.ID, &x.Name, &x.Role, &x.IsBuyer, &x.IsSupplier, &x.Status); err != nil {
+		if err := rows.Scan(&x.ID, &x.Name, &x.Role, &x.IsBuyer, &x.IsSupplier, &x.Status, &x.Verification); err != nil {
 			return m, err
 		}
 		m.Companies = append(m.Companies, x)
@@ -359,6 +360,13 @@ func (r *Repository) setRole(ctx context.Context, actorID, userID int64, role st
 		return audit.Write(ctx, tx, audit.Event{ActorID: actorID, TargetUserID: userID, Action: action,
 			Details: map[string]any{"role": role}})
 	})
+}
+
+// HasRole re-checks a platform role inside a transaction, so that a revocation
+// takes effect even for a request already in progress.
+func HasRole(ctx context.Context, q database.Querier, userID int64, role string) (ok bool, err error) {
+	err = q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM platform_roles WHERE user_id = $1 AND role = $2)`, userID, role).Scan(&ok)
+	return ok, err
 }
 
 // CreateAdmin is used only by the operator command.

@@ -64,7 +64,7 @@ func (s *Service) Create(ctx context.Context, p auth.Principal, d Details) (int6
 
 func (s *Service) Update(ctx context.Context, p auth.Principal, id int64, d Details) error {
 	// Authorise before validating, so a stranger learns nothing from the answer.
-	if _, err := authorize(ctx, s.repo.db, p, id, true, false); err != nil {
+	if _, err := Authorize(ctx, s.repo.db, p, id, true, false); err != nil {
 		return err
 	}
 	d, err := clean(d)

@@ -57,6 +57,8 @@ type Membership struct {
 	IsBuyer    bool   `json:"is_buyer"`
 	IsSupplier bool   `json:"is_supplier"`
 	Status     string `json:"status"`
+	// Verification: see the company_verification view.
+	Verification string `json:"verification"`
 }
 
 type Me struct {

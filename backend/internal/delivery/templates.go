@@ -9,6 +9,12 @@ const (
 	KindResetPassword     = "reset_password"
 	KindAddContact        = "add_contact"
 	KindTest              = "test"
+
+	// Decisions on company verification, always in both languages: the owner's
+	// language is not known at that moment.
+	KindVerificationApproved = "verification_approved"
+	KindVerificationChanges  = "verification_changes"
+	KindVerificationRejected = "verification_rejected"
 )
 
 type template struct{ subject, text string }
@@ -38,9 +44,28 @@ var templates = map[string]map[string]template{
 	},
 }
 
+func bilingual(subject, kk, ru string) template {
+	return template{"QURYLYS B2B: " + subject,
+		"Сәлеметсіз бе!\n\n" + kk + " Толығырақ — кабинеттегі «Компанияны тексеру» бөлімінде.\n\n---\n\n" +
+			"Здравствуйте!\n\n" + ru + " Подробности — в кабинете, раздел «Проверка компании».\n\nQURYLYS B2B\n"}
+}
+
+// Verification mails carry no company data, comments, documents or links.
+var verificationTemplates = map[string]template{
+	KindVerificationApproved: bilingual("компания тексерілді / компания проверена",
+		"Компанияңыздың өтінімі мақұлданды.", "Заявка вашей компании одобрена."),
+	KindVerificationChanges: bilingual("түзету қажет / нужны исправления",
+		"Компанияңыздың өтінімі бойынша түзету қажет.", "По заявке вашей компании нужны исправления."),
+	KindVerificationRejected: bilingual("өтінім қабылданбады / заявка отклонена",
+		"Компанияңыздың өтінімі қабылданбады.", "Заявка вашей компании отклонена."),
+}
+
 // mailText falls back to Kazakh, the primary language. No user-supplied text is
 // included, so the mail cannot be abused to send someone else's content.
 func mailText(m Message) (subject, text string) {
+	if t, ok := verificationTemplates[m.Kind]; ok {
+		return t.subject, t.text
+	}
 	set, ok := templates[m.Locale]
 	if !ok {
 		set = templates["kk"]

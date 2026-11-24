@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import { Alert, Card } from "@/components/ui/Field";
 import { useActiveCompany, useMe } from "./MeContext";
+import { VerificationBadge } from "./VerificationParts";
 
 export function Overview() {
   const { t } = useI18n();
@@ -37,12 +38,15 @@ export function Overview() {
             {company.is_buyer ? <Badge>{t.account.buyer}</Badge> : null}
             {company.is_supplier ? <Badge>{t.account.supplier}</Badge> : null}
             {company.status === "suspended" ? <Badge tone="danger">{t.account.suspended}</Badge> : null}
-            <Badge tone="muted">{t.account.unverified}</Badge>
+            <VerificationBadge status={company.verification} />
           </p>
           <p className="mt-3 text-sm text-ink-600">
             {t.account.yourRole}: {t.account[company.role]}
           </p>
-          <p className="mt-1 text-sm text-ink-600">{t.account.unverifiedText}</p>
+          <p className="mt-1 text-sm text-ink-600">{t.verification.hint[company.verification]}</p>
+          <Link href="/account/verification" className="mt-3 inline-block text-sm font-semibold text-brand-700 hover:underline">
+            {t.verification.title}
+          </Link>
         </Card>
       ) : (
         <Card title={me.companies.length ? t.account.chooseCompany : t.account.noCompany}>

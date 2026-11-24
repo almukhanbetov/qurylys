@@ -20,7 +20,8 @@ B2B-маркетплейс строительных материалов для 
 - Ошибки клиенту: `{"error": {"code", "message"}}` через `internal/httpx`. Внутренние ошибки логируются, клиенту — общее сообщение.
 - Конфигурация — только переменные окружения (`internal/config`). Секреты не коммитить; `.env.example` без реальных значений.
 - Межмодульные зависимости — без циклов (сейчас `products` использует `offers.AvailableCondition`, `companies` использует `auth.Principal`).
-- Доступ: сессии — `internal/auth` (HttpOnly-cookie), CSRF — `middleware.CSRF` на всём `/api/v1`. Любой запрос к данным компании проходит через `companies.authorize` (членство → активная компания → роль). См. `docs/accounts.md`.
+- Доступ: сессии — `internal/auth` (HttpOnly-cookie), CSRF — `middleware.CSRF` на всём `/api/v1`. Любой запрос к данным компании проходит через `companies.Authorize` (членство → активная компания → роль). См. `docs/accounts.md`.
+- Статус проверки компании меняется только через `internal/verification` (и триггеры миграции 00008); список ключевых реквизитов — в триггере, `companies.keyChange`, `verification.keyChanged` и `CompanyForm.KEY_FIELDS`, меняются вместе. Файлы — только через обработчики с проверкой прав.
 - Персональные ответы — `Cache-Control: no-store`. Коды, пароли и токены не попадают в логи, аудит и ответы API.
 
 ## Предметная модель

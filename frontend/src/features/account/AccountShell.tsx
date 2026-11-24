@@ -21,6 +21,7 @@ export function AccountShell({ me, children }: { me: Me; children: ReactNode }) 
     ...(me.active_company_id
       ? [
           { href: "/account/company", label: t.account.company },
+          { href: "/account/verification", label: t.verification.title },
           { href: "/account/members", label: t.account.members },
         ]
       : []),
@@ -30,6 +31,7 @@ export function AccountShell({ me, children }: { me: Me; children: ReactNode }) 
     },
     { href: "/account/profile", label: t.account.profile },
     { href: "/account/security", label: t.account.security },
+    ...(me.platform_roles.includes("mrx") ? [{ href: "/account/mrx", label: t.verification.mrxTitle }] : []),
     ...(me.platform_roles.includes("admin") ? [{ href: "/account/admin", label: t.account.admin }] : []),
   ];
   const isActive = (href: string) => (href === "/account" ? pathname === href : pathname.startsWith(href));

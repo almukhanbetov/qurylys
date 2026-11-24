@@ -7,14 +7,23 @@ import type { CompanyDetails } from "@/types/api";
 import { Button } from "@/components/ui/Button";
 import { Alert, Field } from "@/components/ui/Field";
 
+/** Covered by the verification; the API enforces the same list. */
+const KEY_FIELDS = ["name", "bin", "legal_address", "representative_name"] as const;
+
 export function CompanyForm({
   initial,
   disabled = false,
+  lockKeyFields = false,
+  confirmKeyChange,
   submitLabel,
   onSubmit,
 }: {
   initial: CompanyDetails;
   disabled?: boolean;
+  /** Under review: details covered by the verification cannot change. */
+  lockKeyFields?: boolean;
+  /** Verified: asked before saving a change that drops the verification. */
+  confirmKeyChange?: string;
   submitLabel: string;
   onSubmit: (d: CompanyDetails) => Promise<void>;
 }) {
@@ -43,6 +52,9 @@ export function CompanyForm({
     <form
       onSubmit={(e) => {
         e.preventDefault();
+        const keyChanged =
+          KEY_FIELDS.some((k) => d[k].trim() !== initial[k]) || (d.is_supplier && !initial.is_supplier);
+        if (confirmKeyChange && keyChanged && !window.confirm(confirmKeyChange)) return;
         void run(() => onSubmit(d)).then(setSaved);
       }}
     >
@@ -55,6 +67,7 @@ export function CompanyForm({
               label={f.label}
               value={d[f.key]}
               maxLength={f.max}
+              disabled={lockKeyFields && KEY_FIELDS.some((k) => k === f.key)}
               inputMode={f.key === "bin" ? "numeric" : f.tel ? "tel" : undefined}
               onChange={(e) => set({ [f.key]: e.target.value })}
               required
@@ -69,7 +82,7 @@ export function CompanyForm({
               {a.buyer}
             </label>
             <label className="flex min-h-11 items-center gap-2 text-sm">
-              <input type="checkbox" className="h-5 w-5 accent-brand-700" checked={d.is_supplier} onChange={(e) => set({ is_supplier: e.target.checked })} />
+              <input type="checkbox" className="h-5 w-5 accent-brand-700" disabled={lockKeyFields && !initial.is_supplier} checked={d.is_supplier} onChange={(e) => set({ is_supplier: e.target.checked })} />
               {a.supplier}
             </label>
           </div>

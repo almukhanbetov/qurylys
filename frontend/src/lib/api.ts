@@ -6,13 +6,19 @@ import type {
   CompanyInvitation,
   CompanyMember,
   CompanyRole,
+  CompanyVerification,
   Me,
   DeliveryOptions,
+  DocumentKind,
   MyInvitation,
   Offer,
   ProductDetail,
   ProductPage,
   ProductSort,
+  Review,
+  ReviewDecision,
+  ReviewPage,
+  ReviewStatus,
   SessionInfo,
 } from "@/types/api";
 
@@ -53,14 +59,16 @@ async function request<T>(path: string, init: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   // Required by the API for state-changing requests (CSRF protection).
   if (method !== "GET") headers["X-Qurylys-Csrf"] = "1";
-  if (payload !== undefined) headers["Content-Type"] = "application/json";
+  const form = payload instanceof FormData;
+  // The browser sets the multipart boundary itself.
+  if (payload !== undefined && !form) headers["Content-Type"] = "application/json";
   if (cookie) headers.Cookie = cookie;
   let res: Response;
   try {
     res = await fetch(baseUrl() + path, {
       method,
       headers,
-      body: payload === undefined ? undefined : JSON.stringify(payload),
+      body: payload === undefined ? undefined : form ? payload : JSON.stringify(payload),
       // Needed in development, where the API runs on another port.
       credentials: "include",
       cache: "no-store",
@@ -75,7 +83,7 @@ async function request<T>(path: string, init: RequestOptions = {}): Promise<T> {
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const e = (body as { error?: { code?: string; message?: string } } | null)?.error;
-    throw new ApiError(res.status, e?.code ?? "http_error", e?.message ?? res.statusText);
+    throw new ApiError(res.status, e?.code ?? (res.status === 413 ? "file_too_large" : "http_error"), e?.message ?? res.statusText);
   }
   return (body as { data: T }).data;
 }
@@ -151,6 +159,31 @@ export const companyApi = {
   invite: (id: number, contact: string) => post(`/companies/${id}/invitations`, { contact }),
   cancelInvitation: (id: number, invitationId: number) =>
     request<void>(`/companies/${id}/invitations/${invitationId}`, { method: "DELETE" }),
+};
+
+export const verificationApi = {
+  get: (companyId: number, signal?: AbortSignal) =>
+    request<CompanyVerification>(`/companies/${companyId}/verification`, { signal }),
+  create: (companyId: number) => post(`/companies/${companyId}/verification`),
+  submit: (companyId: number) => post(`/companies/${companyId}/verification/submit`),
+  upload: (companyId: number, kind: DocumentKind, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return post(`/companies/${companyId}/verification/documents?kind=${kind}`, form);
+  },
+  removeDocument: (companyId: number, id: number) =>
+    request<void>(`/companies/${companyId}/verification/documents/${id}`, { method: "DELETE" }),
+  /** Needs the session cookie; not a public link. */
+  documentUrl: (companyId: number, id: number) => `${baseUrl()}/companies/${companyId}/verification/documents/${id}`,
+};
+
+export const mrxApi = {
+  list: (status: ReviewStatus | "", page: number, signal?: AbortSignal) =>
+    request<ReviewPage>(`/mrx/requests?status=${status}&page=${page}`, { signal }),
+  get: (id: number, signal?: AbortSignal) => request<Review>(`/mrx/requests/${id}`, { signal }),
+  decide: (id: number, submission_no: number, decision: ReviewDecision, comment: string) =>
+    post(`/mrx/requests/${id}/decision`, { submission_no, decision, comment }),
+  documentUrl: (id: number, documentId: number) => `${baseUrl()}/mrx/requests/${id}/documents/${documentId}`,
 };
 
 export const adminApi = {

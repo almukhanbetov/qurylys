@@ -24,6 +24,7 @@ var (
 	errSuspended      = httpx.NewError(http.StatusForbidden, "company_suspended", "The company is suspended")
 	errBINTaken       = httpx.NewError(http.StatusConflict, "bin_taken", "A company with this BIN is already registered")
 	errLastOwner      = httpx.NewError(http.StatusConflict, "last_owner", "The company must keep at least one owner")
+	errInReview       = httpx.NewError(http.StatusConflict, "company_in_review", "Key details cannot change while the company is being verified")
 	errHasOffers      = httpx.NewError(http.StatusConflict, "supplier_has_offers", "The company has offers and must stay a supplier")
 	errInvited        = httpx.NewError(http.StatusConflict, "already_invited", "This contact is already invited or the limit is reached")
 	errAlreadyMember  = httpx.NewError(http.StatusConflict, "already_member", "Already a member")
@@ -46,6 +47,8 @@ type Company struct {
 	ID int64 `json:"id"`
 	Details
 	Status string `json:"status"`
+	// Verification: see the company_verification view.
+	Verification string `json:"verification"`
 	// Role of the requesting user.
 	Role string `json:"role"`
 }

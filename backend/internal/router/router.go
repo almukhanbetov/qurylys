@@ -19,6 +19,7 @@ import (
 	"github.com/qurylys/qurylys/backend/internal/offers"
 	"github.com/qurylys/qurylys/backend/internal/products"
 	"github.com/qurylys/qurylys/backend/internal/ratelimit"
+	"github.com/qurylys/qurylys/backend/internal/verification"
 )
 
 func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender) *gin.Engine {
@@ -45,6 +46,8 @@ func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender
 	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db), sender, limiter, log, cfg.EmailDailyLimit), log, cfg.IsProduction())
 	authHandler.Register(v1)
 	companies.NewHandler(companies.NewService(companies.NewRepository(db), limiter), log).Register(v1, authHandler.RequireUser)
+	verification.NewHandler(verification.NewService(verification.NewRepository(db), limiter, sender, log), log).
+		Register(v1, authHandler.RequireUser, authHandler.RequireRole(auth.RoleMRX))
 
 	return r
 }

@@ -30,7 +30,6 @@ server {
     server_name QURYLYS_DOMAIN_PLACEHOLDER;
 
     server_tokens off;
-    # The API accepts no uploads yet; JSON bodies are small.
     client_max_body_size 2m;
 
     add_header X-Content-Type-Options nosniff always;
@@ -46,6 +45,8 @@ server {
     }
 
     location /api/ {
+        # Verification documents: 5 MB plus multipart overhead.
+        client_max_body_size 6m;
         proxy_pass http://qurylys_api;
         proxy_http_version 1.1;
         proxy_set_header Connection "";

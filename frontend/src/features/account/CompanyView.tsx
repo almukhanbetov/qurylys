@@ -48,15 +48,25 @@ function Loaded({ id }: { id: number }) {
               <Alert tone="info">{t.account.readOnly}</Alert>
             </div>
           )}
+          {c.role === "owner" && (c.verification === "in_review" || c.verification === "approved") ? (
+            <div className="mb-4">
+              <Alert tone="info">
+                {c.verification === "in_review" ? t.verification.lockedHint : t.verification.keyWarning}
+              </Alert>
+            </div>
+          ) : null}
           <CompanyForm
             initial={{
               name: c.name, bin: c.bin, city: c.city, legal_address: c.legal_address, actual_address: c.actual_address,
               work_phone: c.work_phone, representative_name: c.representative_name, is_buyer: c.is_buyer, is_supplier: c.is_supplier,
             }}
+            lockKeyFields={c.verification === "in_review"}
+            confirmKeyChange={c.verification === "approved" ? t.verification.confirmKeyChange : undefined}
             disabled={c.role !== "owner" || c.status !== "active"}
             submitLabel={t.account.save}
             onSubmit={async (d) => {
               await companyApi.update(id, d);
+              result.retry(); // a key change may have dropped the verification
               router.refresh(); // the shell shows the company name
             }}
           />

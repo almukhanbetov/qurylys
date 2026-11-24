@@ -24,7 +24,7 @@ const (
 type Message struct {
 	Channel string `json:"channel"` // email | phone
 	To      string `json:"to"`
-	// Kind: register | already_registered | reset_password | add_contact
+	// Kind: one of the Kind* constants.
 	Kind string `json:"kind"`
 	Code string `json:"code,omitempty"`
 	// Locale: kk | ru

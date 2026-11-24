@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 const tones = {
   brand: "bg-brand-100 text-brand-800",
   demo: "bg-amber-100 text-amber-900 ring-1 ring-amber-200",
+  // Amber: waiting or attention; red is reserved for refusals.
+  attention: "bg-amber-100 text-amber-900",
   muted: "bg-ink-100 text-ink-600",
   danger: "bg-red-50 text-red-700",
 } as const;

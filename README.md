@@ -4,7 +4,7 @@ B2B-маркетплейс строительных материалов для 
 
 > Все товары, цены и поставщики в базе — **демонстрационные** данные (`is_demo`), а не реальные предложения.
 
-Подробности: [docs/catalog.md](docs/catalog.md) (модель, API, правило минимальной цены), [docs/accounts.md](docs/accounts.md) (пользователи, компании, права), [docs/roadmap.md](docs/roadmap.md) (этапы), [docs/money.md](docs/money.md) (представление денег), [docs/deployment.md](docs/deployment.md) (CI/CD и production на VPS), [docs/release-stage1.md](docs/release-stage1.md) (публикация этапа 1), [CLAUDE.md](CLAUDE.md) (правила архитектуры).
+Подробности: [docs/catalog.md](docs/catalog.md) (модель, API, правило минимальной цены), [docs/accounts.md](docs/accounts.md) (пользователи, компании, права), [docs/verification.md](docs/verification.md) (проверка компаний), [docs/roadmap.md](docs/roadmap.md) (этапы), [docs/money.md](docs/money.md) (представление денег), [docs/deployment.md](docs/deployment.md) (CI/CD и production на VPS), [docs/release-stage1.md](docs/release-stage1.md) (публикация этапа 1), [CLAUDE.md](CLAUDE.md) (правила архитектуры).
 
 ## Требования (Ubuntu)
 
@@ -119,6 +119,7 @@ backend/
   cmd/api, cmd/migrate, cmd/seed, cmd/admin   # точки входа
   internal/
     config, database, middleware, router, httpx, health
+    verification                   # заявки, документы, решения MRX
     auth, companies                # пользователи, сессии, компании, членство
     audit, delivery, ratelimit, validate
     categories, products, offers   # model / handler / service / repository

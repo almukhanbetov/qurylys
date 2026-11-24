@@ -3,6 +3,7 @@ package companies
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -36,9 +37,9 @@ func access(ctx context.Context, q database.Querier, userID, companyID int64, lo
 	return role, status, err
 }
 
-// authorize is the single permission check for company-scoped requests:
+// Authorize is the single permission check for company-scoped requests:
 // membership, then the selected company, then role and status for changes.
-func authorize(ctx context.Context, q database.Querier, p auth.Principal, companyID int64, ownerOnly, change bool) (string, error) {
+func Authorize(ctx context.Context, q database.Querier, p auth.Principal, companyID int64, ownerOnly, change bool) (string, error) {
 	role, status, err := access(ctx, q, p.UserID, companyID, change)
 	switch {
 	case err != nil:
@@ -86,22 +87,22 @@ func addMember(ctx context.Context, tx *sql.Tx, companyID, userID int64, role st
 
 func (r *Repository) get(ctx context.Context, p auth.Principal, id int64) (Company, error) {
 	c := Company{ID: id}
-	role, err := authorize(ctx, r.db, p, id, false, false)
+	role, err := Authorize(ctx, r.db, p, id, false, false)
 	if err != nil {
 		return c, err
 	}
 	c.Role = role
 	err = r.db.QueryRowContext(ctx, `
 		SELECT name, COALESCE(bin, ''), COALESCE(city, ''), COALESCE(legal_address, ''), COALESCE(actual_address, ''),
-			COALESCE(work_phone, ''), COALESCE(representative_name, ''), is_buyer, is_supplier, status
-		FROM companies WHERE id = $1`, id).
-		Scan(&c.Name, &c.BIN, &c.City, &c.LegalAddress, &c.ActualAddress, &c.WorkPhone, &c.Representative, &c.IsBuyer, &c.IsSupplier, &c.Status)
+			COALESCE(work_phone, ''), COALESCE(representative_name, ''), is_buyer, is_supplier, c.status, v.status
+		FROM companies c JOIN company_verification v ON v.company_id = c.id WHERE c.id = $1`, id).
+		Scan(&c.Name, &c.BIN, &c.City, &c.LegalAddress, &c.ActualAddress, &c.WorkPhone, &c.Representative, &c.IsBuyer, &c.IsSupplier, &c.Status, &c.Verification)
 	return c, err
 }
 
 func (r *Repository) update(ctx context.Context, p auth.Principal, id int64, d Details) error {
 	return database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := authorize(ctx, tx, p, id, true, true); err != nil {
+		if _, err := Authorize(ctx, tx, p, id, true, true); err != nil {
 			return err
 		}
 		if !d.IsSupplier {
@@ -112,6 +113,9 @@ func (r *Repository) update(ctx context.Context, p auth.Principal, id int64, d D
 			if has {
 				return errHasOffers
 			}
+		}
+		if err := keyChange(ctx, tx, p, id, d); err != nil {
+			return err
 		}
 		_, err := tx.ExecContext(ctx, `
 			UPDATE companies SET name = $2, bin = $3, city = $4, legal_address = $5, actual_address = $6,
@@ -128,8 +132,60 @@ func (r *Repository) update(ctx context.Context, p auth.Principal, id int64, d D
 	})
 }
 
+// keyChange refuses to change key details during a review and records that a
+// verified company loses its verification. The companies_verification_guard
+// trigger enforces the same rule and clears verified_request_id.
+func keyChange(ctx context.Context, tx *sql.Tx, p auth.Principal, id int64, d Details) error {
+	var old Details
+	var verified sql.NullInt64
+	var inReview bool
+	err := tx.QueryRowContext(ctx, `
+		SELECT name, COALESCE(bin, ''), COALESCE(legal_address, ''), COALESCE(representative_name, ''), is_supplier, verified_request_id,
+			EXISTS (SELECT 1 FROM verification_requests WHERE company_id = c.id AND status = 'in_review')
+		FROM companies c WHERE id = $1`, id).
+		Scan(&old.Name, &old.BIN, &old.LegalAddress, &old.Representative, &old.IsSupplier, &verified, &inReview)
+	if err != nil {
+		return err
+	}
+	type change struct {
+		Field string `json:"field"`
+		Old   string `json:"old"`
+		New   string `json:"new"`
+	}
+	var changed []change
+	for _, f := range []change{
+		{"name", old.Name, d.Name}, {"bin", old.BIN, d.BIN}, {"legal_address", old.LegalAddress, d.LegalAddress},
+		{"representative_name", old.Representative, d.Representative},
+	} {
+		if f.Old != f.New {
+			changed = append(changed, f)
+		}
+	}
+	if d.IsSupplier && !old.IsSupplier {
+		changed = append(changed, change{"is_supplier", "no", "yes"})
+	}
+	if len(changed) == 0 {
+		return nil
+	}
+	if inReview {
+		return errInReview
+	}
+	if !verified.Valid {
+		return nil
+	}
+	details, err := json.Marshal(map[string]any{"changed": changed})
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO verification_events (request_id, company_id, submission_no, actor_user_id, actor_name, action, from_status, to_status, details)
+		SELECT r.id, r.company_id, r.submission_no, u.id, u.full_name, 'verification_lost', 'approved', 'reverification', $3::jsonb
+		FROM verification_requests r, users u WHERE r.id = $1 AND u.id = $2`, verified.Int64, p.UserID, string(details))
+	return err
+}
+
 func (r *Repository) members(ctx context.Context, p auth.Principal, id int64) ([]Member, error) {
-	role, err := authorize(ctx, r.db, p, id, false, false)
+	role, err := Authorize(ctx, r.db, p, id, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +222,7 @@ func keepOwner(ctx context.Context, tx *sql.Tx, companyID, userID int64) error {
 
 func (r *Repository) setRole(ctx context.Context, p auth.Principal, id, userID int64, role string) error {
 	return database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := authorize(ctx, tx, p, id, true, true); err != nil {
+		if _, err := Authorize(ctx, tx, p, id, true, true); err != nil {
 			return err
 		}
 		if role != RoleOwner {
@@ -189,7 +245,7 @@ func (r *Repository) setRole(ctx context.Context, p auth.Principal, id, userID i
 // removeMember lets owners remove anyone and members remove themselves.
 func (r *Repository) removeMember(ctx context.Context, p auth.Principal, id, userID int64) error {
 	return database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := authorize(ctx, tx, p, id, userID != p.UserID, true); err != nil {
+		if _, err := Authorize(ctx, tx, p, id, userID != p.UserID, true); err != nil {
 			return err
 		}
 		if err := keepOwner(ctx, tx, id, userID); err != nil {
@@ -207,7 +263,7 @@ func (r *Repository) removeMember(ctx context.Context, p auth.Principal, id, use
 }
 
 func (r *Repository) invitations(ctx context.Context, p auth.Principal, id int64) ([]Invitation, error) {
-	if _, err := authorize(ctx, r.db, p, id, true, false); err != nil {
+	if _, err := Authorize(ctx, r.db, p, id, true, false); err != nil {
 		return nil, err
 	}
 	rows, err := r.db.QueryContext(ctx, `
@@ -230,7 +286,7 @@ func (r *Repository) invitations(ctx context.Context, p auth.Principal, id int64
 
 func (r *Repository) invite(ctx context.Context, p auth.Principal, id int64, kind, contact string) error {
 	return database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := authorize(ctx, tx, p, id, true, true); err != nil {
+		if _, err := Authorize(ctx, tx, p, id, true, true); err != nil {
 			return err
 		}
 		// Expired invitations must not block a new one.
@@ -261,7 +317,7 @@ func (r *Repository) invite(ctx context.Context, p auth.Principal, id int64, kin
 
 func (r *Repository) cancelInvitation(ctx context.Context, p auth.Principal, id, invitationID int64) error {
 	return database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := authorize(ctx, tx, p, id, true, true); err != nil {
+		if _, err := Authorize(ctx, tx, p, id, true, true); err != nil {
 			return err
 		}
 		res, err := tx.ExecContext(ctx, `
