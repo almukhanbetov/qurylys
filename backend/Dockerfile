@@ -1,7 +1,7 @@
 # One image, four binaries: api (default), migrate, seed, admin.
 # Base images are pinned by digest; Dependabot (docker ecosystem) proposes updates.
 # Go must stay in sync with .github/workflows/ci.yml (GO_VERSION).
-FROM golang:1.25-alpine3.24@sha256:1ae0735f00daffa3aaf1363a5184c0d2dc55c78e3db4ec70241cdac97bf84b59 AS build
+FROM golang:1.27-alpine3.24@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS build
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local
 
