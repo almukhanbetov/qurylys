@@ -1,6 +1,6 @@
 # Node must stay in sync with frontend/.nvmrc (used by CI).
 # Base image is pinned by digest; Dependabot (docker ecosystem) proposes updates.
-FROM node:24-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS base
+FROM node:26-alpine3.24@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS base
 
 FROM base AS deps
 WORKDIR /app
