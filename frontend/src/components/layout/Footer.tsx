@@ -23,6 +23,8 @@ export async function Footer() {
             <li><Link className="hover:text-white" href="/">{t.nav.home}</Link></li>
             <li><Link className="hover:text-white" href="/catalog">{t.nav.catalog}</Link></li>
             <li><Link className="hover:text-white" href="/categories">{t.nav.categories}</Link></li>
+            <li><Link className="hover:text-white" href="/brands">{t.nav.brands}</Link></li>
+            <li><Link className="hover:text-white" href="/suppliers">{t.nav.suppliers}</Link></li>
           </ul>
         </div>
 

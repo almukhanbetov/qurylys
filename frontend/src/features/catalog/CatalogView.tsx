@@ -20,9 +20,11 @@ const PAGE_SIZE = 12;
 function readQuery(sp: URLSearchParams): ProductQuery {
   const sort = sp.get("sort");
   const page = Number(sp.get("page"));
+  const brand = Number(sp.get("brand"));
   return {
     q: sp.get("q")?.trim() || undefined,
     category: sp.get("category") || undefined,
+    brand: Number.isSafeInteger(brand) && brand > 0 ? brand : undefined,
     sort: PRODUCT_SORTS.includes(sort as ProductSort) ? (sort as ProductSort) : undefined,
     page: Number.isInteger(page) && page > 1 ? page : 1,
     pageSize: PAGE_SIZE,
@@ -51,6 +53,10 @@ export function CatalogView({ categories }: { categories: CategoryNode[] }) {
   const key = productQueryString(query);
 
   const result = useApiQuery(key, (signal) => api.products(query, signal));
+  // The brand name for the filter chip; an unknown brand simply finds nothing.
+  const brand = useApiQuery(`catalog-brand:${query.brand ?? ""}`, (signal) =>
+    query.brand ? api.brand(query.brand, signal).catch(() => null) : Promise.resolve(null),
+  );
 
   function update(patch: Partial<ProductQuery>) {
     const next = { ...query, ...patch };
@@ -100,10 +106,11 @@ export function CatalogView({ categories }: { categories: CategoryNode[] }) {
           </label>
         </div>
 
-        {(query.q || query.category) && (
+        {(query.q || query.category || query.brand) && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {query.q ? <Badge tone="muted">«{query.q}»</Badge> : null}
             {activeCategory ? <Badge>{pick(locale, activeCategory.name_kk, activeCategory.name_ru)}</Badge> : null}
+            {query.brand ? <Badge>{format(t.catalog.brandFilter, { name: brand.data?.name ?? `#${query.brand}` })}</Badge> : null}
             <Link href="/catalog" className="text-sm font-semibold text-brand-700 hover:underline">
               {t.catalog.resetFilters}
             </Link>

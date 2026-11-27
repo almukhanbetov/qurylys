@@ -26,6 +26,7 @@ func (h *Handler) list(c *gin.Context) {
 	f, err := ParseListParams(RawListParams{
 		Q:        c.Query("q"),
 		Category: c.Query("category"),
+		Brand:    c.Query("brand"),
 		Sort:     c.Query("sort"),
 		Page:     c.Query("page"),
 		PageSize: c.Query("page_size"),

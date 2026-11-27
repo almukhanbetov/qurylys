@@ -30,6 +30,10 @@ var sortClauses = map[Sort]string{
 
 // offerStatsJoin computes min price and count over available offers per product.
 // The availability rule lives in offers.AvailableCondition (docs/catalog.md).
+// PublicCardSQL is the single rule for a card shown on public pages (alias p
+// for products, cat for its category). Brand pages use it too.
+const PublicCardSQL = `p.is_active AND p.blocked_at IS NULL AND cat.is_active`
+
 var offerStatsJoin = `
 	LEFT JOIN LATERAL (
 		SELECT MIN(o.price_tiyn) AS min_price_tiyn, COUNT(*) AS offer_count
@@ -58,7 +62,7 @@ func escapeLike(s string) string {
 // buildWhere returns the CTE prefix (for category subtree), the WHERE clause and args.
 func buildWhere(f ListFilter) (cte string, where string, b *queryBuilder) {
 	b = &queryBuilder{}
-	conds := []string{"p.is_active", "p.blocked_at IS NULL", "cat.is_active"}
+	conds := []string{PublicCardSQL}
 
 	if f.CategorySlug != "" {
 		cte = `WITH RECURSIVE subtree AS (
@@ -67,6 +71,10 @@ func buildWhere(f ListFilter) (cte string, where string, b *queryBuilder) {
 			SELECT c.id FROM categories c JOIN subtree t ON c.parent_id = t.id WHERE c.is_active
 		) `
 		conds = append(conds, "p.category_id IN (SELECT id FROM subtree)")
+	}
+
+	if f.BrandID > 0 {
+		conds = append(conds, "p.brand_id = "+b.arg(f.BrandID))
 	}
 
 	for _, term := range f.Terms {
@@ -98,7 +106,7 @@ func (r *Repository) List(ctx context.Context, f ListFilter) ([]ListItem, int, e
 
 	limit := b.arg(f.PageSize)
 	offset := b.arg((f.Page - 1) * f.PageSize)
-	listSQL := cte + `SELECT p.id, p.slug, p.catalog_no, p.gtin, p.name_kk, p.name_ru, p.brand, p.unit, p.is_demo,
+	listSQL := cte + `SELECT p.id, p.slug, p.catalog_no, p.gtin, p.name_kk, p.name_ru, p.brand, p.brand_id, p.unit, p.is_demo,
 			cat.id, cat.slug, cat.name_kk, cat.name_ru,
 			os.min_price_tiyn, COALESCE(os.offer_count, 0)
 		FROM products p
@@ -117,7 +125,7 @@ func (r *Repository) List(ctx context.Context, f ListFilter) ([]ListItem, int, e
 	for rows.Next() {
 		var it ListItem
 		var minPrice sql.NullInt64
-		if err := rows.Scan(&it.ID, &it.Slug, &it.CatalogNo, &it.GTIN, &it.NameKK, &it.NameRU, &it.Brand, &it.Unit, &it.IsDemo,
+		if err := rows.Scan(&it.ID, &it.Slug, &it.CatalogNo, &it.GTIN, &it.NameKK, &it.NameRU, &it.Brand, &it.BrandID, &it.Unit, &it.IsDemo,
 			&it.Category.ID, &it.Category.Slug, &it.Category.NameKK, &it.Category.NameRU,
 			&minPrice, &it.OfferCount); err != nil {
 			return nil, 0, fmt.Errorf("scan product: %w", err)
@@ -143,7 +151,7 @@ func (r *Repository) CategoryExists(ctx context.Context, slug string) (bool, err
 
 func (r *Repository) Get(ctx context.Context, id int64) (*Detail, error) {
 	const q = `
-		SELECT p.id, p.slug, p.catalog_no, p.gtin, p.name_kk, p.name_ru, p.brand, p.unit, p.is_demo,
+		SELECT p.id, p.slug, p.catalog_no, p.gtin, p.name_kk, p.name_ru, p.brand, p.brand_id, p.unit, p.is_demo,
 			cat.id, cat.slug, cat.name_kk, cat.name_ru,
 			os.min_price_tiyn, COALESCE(os.offer_count, 0),
 			p.description_kk, p.description_ru, p.attributes, p.updated_at
@@ -154,8 +162,8 @@ func (r *Repository) Get(ctx context.Context, id int64) (*Detail, error) {
 	var minPrice sql.NullInt64
 	var attrs []byte
 	err := r.db.QueryRowContext(ctx, q+offerStatsJoin+`
-		WHERE p.id = $1 AND p.is_active AND p.blocked_at IS NULL AND cat.is_active`, id).Scan(
-		&d.ID, &d.Slug, &d.CatalogNo, &d.GTIN, &d.NameKK, &d.NameRU, &d.Brand, &d.Unit, &d.IsDemo,
+		WHERE p.id = $1 AND `+PublicCardSQL, id).Scan(
+		&d.ID, &d.Slug, &d.CatalogNo, &d.GTIN, &d.NameKK, &d.NameRU, &d.Brand, &d.BrandID, &d.Unit, &d.IsDemo,
 		&d.Category.ID, &d.Category.Slug, &d.Category.NameKK, &d.Category.NameRU,
 		&minPrice, &d.OfferCount,
 		&d.DescriptionKK, &d.DescriptionRU, &attrs, &d.UpdatedAt)

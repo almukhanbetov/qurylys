@@ -20,6 +20,33 @@ type Handler struct {
 
 func NewHandler(svc *Service, log *slog.Logger) *Handler { return &Handler{svc: svc, log: log} }
 
+// RegisterPublic: anyone; only brands with publicly shown cards.
+func (h *Handler) RegisterPublic(rg *gin.RouterGroup) {
+	rg.GET("/brands", h.publicList)
+	rg.GET("/brands/:id", h.publicGet)
+}
+
+func (h *Handler) publicList(c *gin.Context) {
+	q, ok := query(c)
+	if !ok {
+		return
+	}
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 || page > 10000 {
+		httpx.BadRequest(c, "invalid_page", "page: must be 1..10000")
+		return
+	}
+	v, err := h.svc.repo.publicList(c.Request.Context(), q, page)
+	h.respond(c, http.StatusOK, v, err)
+}
+
+func (h *Handler) publicGet(c *gin.Context) {
+	if id, ok := httpx.PathID(c, "id"); ok {
+		v, err := h.svc.repo.publicGet(c.Request.Context(), id)
+		h.respond(c, http.StatusOK, v, err)
+	}
+}
+
 // Register: holders of catalog.brands manage the directory. Card editors
 // (catalog.moderate) may also read it to choose a brand for a card.
 func (h *Handler) Register(rg *gin.RouterGroup, requireUser, requireManager, requireReader gin.HandlerFunc) {

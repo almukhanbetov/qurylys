@@ -14,6 +14,10 @@ import type {
   LegacyBrandText,
   Paged,
   PlatformPermission,
+  PublicBrand,
+  PublicBrandPage,
+  PublicSupplier,
+  PublicSupplierPage,
   RoleDirectory,
   UserFilter,
   CatalogRequest,
@@ -117,6 +121,7 @@ async function request<T>(path: string, init: RequestOptions = {}): Promise<T> {
 export type ProductQuery = {
   q?: string;
   category?: string;
+  brand?: number;
   sort?: ProductSort;
   page?: number;
   pageSize?: number;
@@ -126,6 +131,7 @@ export function productQueryString(q: ProductQuery): string {
   const p = new URLSearchParams();
   if (q.q) p.set("q", q.q);
   if (q.category) p.set("category", q.category);
+  if (q.brand) p.set("brand", String(q.brand));
   if (q.sort) p.set("sort", q.sort);
   if (q.page && q.page > 1) p.set("page", String(q.page));
   if (q.pageSize) p.set("page_size", String(q.pageSize));
@@ -140,6 +146,12 @@ export const api = {
   product: (id: number) => request<ProductDetail>(`/products/${id}`),
   offers: (productId: number, signal?: AbortSignal) =>
     request<Offer[]>(`/products/${productId}/offers`, { signal }),
+  brands: (q: string, page: number, signal?: AbortSignal) =>
+    request<PublicBrandPage>(`/brands?${new URLSearchParams({ q, page: String(page) })}`, { signal }),
+  brand: (id: number, signal?: AbortSignal) => request<PublicBrand>(`/brands/${id}`, { signal }),
+  suppliers: (q: string, city: string, page: number, signal?: AbortSignal) =>
+    request<PublicSupplierPage>(`/suppliers?${new URLSearchParams({ q, city, page: String(page) })}`, { signal }),
+  supplier: (id: number, signal?: AbortSignal) => request<PublicSupplier>(`/suppliers/${id}`, { signal }),
 };
 
 const post = <T = void>(path: string, body?: unknown) => request<T>(path, { method: "POST", body });

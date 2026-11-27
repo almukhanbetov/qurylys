@@ -10,10 +10,10 @@ B2B-маркетплейс строительных материалов для 
 
 ## Стек (не менять без отдельной задачи)
 
-- Backend: Go 1.25 + Gin. БД через `database/sql` + `github.com/jackc/pgx/v5/stdlib`. **Без GORM и lib/pq.**
+- Backend: Go 1.27 (тулчейн CI и Dockerfile; `go.mod` — язык 1.25) + Gin. БД через `database/sql` + `github.com/jackc/pgx/v5/stdlib`. **Без GORM и lib/pq.**
 - Миграции: Goose, только SQL, файлы `backend/migrations/NNNNN_name.sql`, встроены в бинарник `migrate` через `embed`.
 - PostgreSQL 17 (builtin-локаль `C.UTF-8`) локально; production — системный PostgreSQL 16 на VPS (libc `C.UTF-8`, БД `qurylys_b2b`, не пересоздавать). CI проверяет обе конфигурации.
-- Frontend: Next.js 16 (App Router) + TypeScript (strict) + Tailwind CSS 4.
+- Frontend: Node.js 26 (`frontend/.nvmrc` = Dockerfile = CI), Next.js 16 (App Router) + TypeScript (strict) + Tailwind CSS 4.
 - Инфраструктура: Docker Compose + Nginx (единый домен: `/api/` → API, остальное → Next.js). Production: образы из GHCR, `deploy/compose.prod.yml`, системный Nginx, деплой — `docs/deployment.md`.
 - Платные сервисы не подключать без отдельной задачи. Ничего не деплоить без отдельной задачи.
 
@@ -54,7 +54,8 @@ B2B-маркетплейс строительных материалов для 
 - Тексты интерфейса — только в словарях `src/lib/i18n/dictionaries/{kk,ru}.ts`. `kk.ts` — эталон, тип `Dictionary` заставляет `ru.ts` иметь те же ключи.
 - Язык хранится в cookie `qurylys_locale`, меняется Server Action `setLocale`; серверные компоненты читают `getI18n()`, клиентские — `useI18n()`. Поля из API: `pick(locale, x_kk, x_ru)`.
 - Каждый экран с данными имеет состояния: загрузка, пусто, ошибка с повтором.
-- Нереализованные функции (корзина, бренды, поставщики) либо скрыты, либо явно отключены с меткой «Жақында/Скоро». Никаких заглушек, имитирующих работу.
+- Нереализованные функции (корзина и т. п.) либо скрыты, либо явно отключены с меткой «Жақында/Скоро». Никаких заглушек, имитирующих работу.
+- Публичная карточка — `products.PublicCardSQL`, публичный поставщик — `suppliers.PublicSupplierSQL`; публичные поля поставщика — только название, город, отметка проверки (решение A8). Новые публичные поля — только по решению.
 - Браузер ходит в `NEXT_PUBLIC_API_BASE_URL` (`/api/v1` за Nginx), SSR — в `API_INTERNAL_URL`.
 - Структура: `app/` (маршруты), `components/ui` и `components/layout` (общие), `features/<область>` (логика экранов), `lib`, `hooks`, `types`.
 

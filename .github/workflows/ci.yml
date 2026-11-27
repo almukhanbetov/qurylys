@@ -31,8 +31,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # Keep in sync with backend/Dockerfile (golang:1.25-alpine3.24 = Go 1.25.14).
-  GO_VERSION: "1.25.14"
+  # Keep in sync with backend/Dockerfile (golang:1.27-alpine3.24 = Go 1.27.4).
+  GO_VERSION: "1.27.4"
   BACKEND_IMAGE: ghcr.io/almukhanbetov/qurylys-backend
   FRONTEND_IMAGE: ghcr.io/almukhanbetov/qurylys-frontend
 

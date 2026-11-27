@@ -18,7 +18,9 @@ var (
 	errExists    = httpx.NewError(http.StatusConflict, "brand_exists", "A brand with this name already exists")
 	errStale     = httpx.NewError(http.StatusConflict, "brand_conflict", "The brand has changed, reload it")
 	errInUse     = httpx.NewError(http.StatusConflict, "brand_in_use", "Product cards refer to the brand")
-	errNoCards   = httpx.NewError(http.StatusConflict, "brand_text_not_found", "No unlinked cards have this brand text")
+	// A brand without public cards does not exist for public pages.
+	errPublicNotFound = httpx.NewError(http.StatusNotFound, "brand_not_found", "Brand not found")
+	errNoCards        = httpx.NewError(http.StatusConflict, "brand_text_not_found", "No unlinked cards have this brand text")
 )
 
 type Brand struct {
@@ -42,4 +44,20 @@ type LegacyText struct {
 	// Match is the brand whose name equals the text ignoring case and spaces.
 	// It is only a hint: linking is always an explicit action.
 	Match *Brand `json:"match"`
+}
+
+// PublicBrand is everything public pages get about a brand: no versions,
+// unlinked texts or administrative counts.
+type PublicBrand struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Products int    `json:"product_count"`
+}
+
+type PublicPage struct {
+	Items      []PublicBrand `json:"items"`
+	Page       int           `json:"page"`
+	PageSize   int           `json:"page_size"`
+	Total      int           `json:"total"`
+	TotalPages int           `json:"total_pages"`
 }

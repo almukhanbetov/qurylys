@@ -34,6 +34,8 @@ export type ProductListItem = {
   name_kk: string;
   name_ru: string;
   brand: string | null;
+  /** Set only for cards explicitly linked to the brand directory. */
+  brand_id: number | null;
   unit: Unit;
   is_demo: boolean;
   category: CategoryRef;
@@ -498,5 +500,20 @@ export type SystemRole = {
 
 export type AccessMechanism = { key: "owner" | "employee" | "admin" | PlatformPermission; holders: number };
 export type RoleDirectory = { roles: SystemRole[]; mechanisms: AccessMechanism[] };
+
+/** Public brand: only brands with publicly shown cards. */
+export type PublicBrand = { id: number; name: string; product_count: number };
+export type PublicBrandPage = { items: PublicBrand[]; page: number; page_size: number; total: number; total_pages: number };
+
+/** The whole public record of a supplier; nothing else is published. */
+export type PublicSupplier = { id: number; name: string; city: string | null; verified: boolean };
+export type PublicSupplierPage = {
+  items: PublicSupplier[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  cities: string[];
+};
 
 export type ApiErrorBody = { error: { code: string; message: string } };

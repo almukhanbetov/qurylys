@@ -72,7 +72,13 @@ export default async function ProductPage({ params }: Props) {
             <Badge tone="muted">{t.product.unit}: {unit}</Badge>
             <Badge tone="muted">{t.catalogRequests.catalogNo}: {product.catalog_no}</Badge>
             {product.gtin ? <Badge tone="muted">GTIN: {product.gtin}</Badge> : null}
-            {product.brand ? <Badge tone="muted">{product.brand}</Badge> : null}
+            {product.brand && product.brand_id ? (
+              <Link href={`/brands/${product.brand_id}`} className="rounded-full hover:underline focus-visible:outline-2 focus-visible:outline-brand-700">
+                <Badge>{product.brand}</Badge>
+              </Link>
+            ) : product.brand ? (
+              <Badge tone="muted">{product.brand}</Badge>
+            ) : null}
           </div>
 
           <div className="mt-6 rounded-2xl bg-white p-5 ring-1 ring-ink-100">

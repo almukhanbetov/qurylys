@@ -28,6 +28,7 @@ func NewService(repo *Repository) *Service { return &Service{repo: repo} }
 type RawListParams struct {
 	Q        string
 	Category string
+	Brand    string
 	Sort     string
 	Page     string
 	PageSize string
@@ -48,6 +49,14 @@ func ParseListParams(raw RawListParams) (ListFilter, error) {
 			return f, &ValidationError{Field: "category", Message: "must be a category slug"}
 		}
 		f.CategorySlug = s
+	}
+
+	if s := strings.TrimSpace(raw.Brand); s != "" {
+		n, err := strconv.ParseInt(s, 10, 64)
+		if err != nil || n < 1 {
+			return f, &ValidationError{Field: "brand", Message: "must be a brand id"}
+		}
+		f.BrandID = n
 	}
 
 	if s := strings.TrimSpace(raw.Sort); s != "" {

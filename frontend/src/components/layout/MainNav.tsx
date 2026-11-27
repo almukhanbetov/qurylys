@@ -17,8 +17,8 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
     { href: "/", label: t.nav.home },
     { href: "/catalog", label: t.nav.catalog },
     { href: "/categories", label: t.nav.categories },
-    { href: null, label: t.nav.brands },
-    { href: null, label: t.nav.suppliers },
+    { href: "/brands", label: t.nav.brands },
+    { href: "/suppliers", label: t.nav.suppliers },
   ];
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));

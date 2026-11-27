@@ -10,6 +10,7 @@ import (
 	"github.com/qurylys/qurylys/backend/internal/audit"
 	"github.com/qurylys/qurylys/backend/internal/auth"
 	"github.com/qurylys/qurylys/backend/internal/database"
+	"github.com/qurylys/qurylys/backend/internal/products"
 )
 
 type Repository struct{ db *sql.DB }
@@ -203,4 +204,43 @@ func (r *Repository) link(ctx context.Context, p auth.Principal, id int64, text 
 			Details: map[string]any{"brand_id": id, "text": text, "cards": n}})
 	})
 	return n, err
+}
+
+// publicFrom keeps only brands with at least one publicly shown card and
+// counts only such cards (products.PublicCardSQL).
+const publicFrom = ` FROM brands b JOIN products p ON p.brand_id = b.id JOIN categories cat ON cat.id = p.category_id
+	WHERE ` + products.PublicCardSQL + ` `
+
+const publicPageSize = 24
+
+func (r *Repository) publicList(ctx context.Context, q string, page int) (PublicPage, error) {
+	out := PublicPage{Items: []PublicBrand{}, Page: page, PageSize: publicPageSize}
+	filter := `AND ($1 = '' OR b.name ILIKE $2)`
+	if err := r.db.QueryRowContext(ctx, `SELECT count(DISTINCT b.id)`+publicFrom+filter, q, like(q)).Scan(&out.Total); err != nil {
+		return out, err
+	}
+	out.TotalPages = (out.Total + publicPageSize - 1) / publicPageSize
+	rows, err := r.db.QueryContext(ctx, `SELECT b.id, b.name, count(*)`+publicFrom+filter+`
+		GROUP BY b.id ORDER BY lower(b.name), b.id LIMIT `+strconv.Itoa(publicPageSize)+` OFFSET $3`, q, like(q), (page-1)*publicPageSize)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var b PublicBrand
+		if err := rows.Scan(&b.ID, &b.Name, &b.Products); err != nil {
+			return out, err
+		}
+		out.Items = append(out.Items, b)
+	}
+	return out, rows.Err()
+}
+
+func (r *Repository) publicGet(ctx context.Context, id int64) (*PublicBrand, error) {
+	var b PublicBrand
+	err := r.db.QueryRowContext(ctx, `SELECT b.id, b.name, count(*)`+publicFrom+`AND b.id = $1 GROUP BY b.id`, id).Scan(&b.ID, &b.Name, &b.Products)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, errPublicNotFound
+	}
+	return &b, err
 }

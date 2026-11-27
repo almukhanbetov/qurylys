@@ -25,6 +25,7 @@ import (
 	"github.com/qurylys/qurylys/backend/internal/ratelimit"
 	"github.com/qurylys/qurylys/backend/internal/roles"
 	"github.com/qurylys/qurylys/backend/internal/selleroffers"
+	"github.com/qurylys/qurylys/backend/internal/suppliers"
 	"github.com/qurylys/qurylys/backend/internal/verification"
 )
 
@@ -48,6 +49,7 @@ func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender
 	categoriesHandler.Register(v1)
 	products.NewHandler(products.NewService(products.NewRepository(db)), log).Register(v1)
 	offers.NewHandler(offers.NewService(offers.NewRepository(db)), log).Register(v1)
+	suppliers.NewHandler(suppliers.NewRepository(db), log).Register(v1)
 
 	limiter := ratelimit.New(db)
 	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db), sender, limiter, log, cfg.EmailDailyLimit), log, cfg.IsProduction())
@@ -65,7 +67,9 @@ func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender
 	// Administration: each section has its own permission; none follows from a role.
 	admin.NewHandler(admin.NewRepository(db), log).Register(v1, authHandler.RequireUser, authHandler.RequireRole(auth.RoleAdmin))
 	categoriesHandler.RegisterAdmin(v1, authHandler.RequireUser, authHandler.RequirePermission(auth.PermCatalogCategories))
-	brands.NewHandler(brands.NewService(brands.NewRepository(db), limiter), log).Register(v1, authHandler.RequireUser,
+	brandsHandler := brands.NewHandler(brands.NewService(brands.NewRepository(db), limiter), log)
+	brandsHandler.RegisterPublic(v1)
+	brandsHandler.Register(v1, authHandler.RequireUser,
 		authHandler.RequirePermission(auth.PermCatalogBrands),
 		authHandler.RequireAnyPermission(auth.PermCatalogBrands, auth.PermCatalogModerate))
 	roles.NewHandler(roles.NewRepository(db), log).Register(v1, authHandler.RequireUser, authHandler.RequireRole(auth.RoleAdmin))

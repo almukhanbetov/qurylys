@@ -28,10 +28,12 @@ type ListItem struct {
 	// CatalogNo is the platform article of the card; not the seller's SKU.
 	CatalogNo string `json:"catalog_no"`
 	// GTIN is shown only when confirmed.
-	GTIN     *string     `json:"gtin"`
-	NameKK   string      `json:"name_kk"`
-	NameRU   string      `json:"name_ru"`
-	Brand    *string     `json:"brand"`
+	GTIN   *string `json:"gtin"`
+	NameKK string  `json:"name_kk"`
+	NameRU string  `json:"name_ru"`
+	Brand  *string `json:"brand"`
+	// BrandID is set only for cards explicitly linked to the brand directory.
+	BrandID  *int64      `json:"brand_id"`
 	Unit     string      `json:"unit"`
 	IsDemo   bool        `json:"is_demo"`
 	Category CategoryRef `json:"category"`
@@ -83,9 +85,11 @@ type ListFilter struct {
 	// in its Kazakh name, Russian name or brand.
 	Terms        []string
 	CategorySlug string
-	Sort         Sort
-	Page         int
-	PageSize     int
+	// BrandID: only cards linked to this brand (0 = any).
+	BrandID  int64
+	Sort     Sort
+	Page     int
+	PageSize int
 }
 
 type Page struct {

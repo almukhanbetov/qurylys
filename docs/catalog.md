@@ -134,3 +134,21 @@ CI прогоняет интеграционные тесты на обеих р
 | GET `/admin/brands` | `catalog.brands` или `catalog.moderate` |
 | GET `/admin/brands/unlinked`; POST; PUT, DELETE `/:id` (с `version`); POST `/:id/link` | `catalog.brands` |
 | GET, POST `/admin/products`; GET, PUT `/:id`; POST `/:id/gtin`, `/:id/block`, `/:id/unblock` (с `version`) | `catalog.moderate` |
+
+## Публичные бренды и поставщики (28.11.2026, локально)
+
+Решение — [A8](decisions/supplier-stage-3.md). Шаг 3.4 этим не выполнен: публичных предложений, сравнения продавцов и опта нет.
+
+**Публичная карточка** — одно правило `products.PublicCardSQL`: `p.is_active AND p.blocked_at IS NULL AND cat.is_active`. Его используют список и страница товара, фильтр по бренду и публичные бренды.
+
+| Метод и путь | Что отдаёт | Правило |
+|---|---|---|
+| GET `/brands?q=&page=` | `id`, `name`, `product_count`; по 24 | только бренды с публичной карточкой, привязанной через `brand_id`; тексты без привязки не участвуют |
+| GET `/brands/:id` | то же для одного | 404 `brand_not_found`, если публичных карточек нет |
+| GET `/products?brand=:id` | список каталога | только привязанные публичные карточки; `brand_id` есть и в ответах товара |
+| GET `/suppliers?q=&city=&page=` | `id`, `name`, `city`, `verified`; `cities` для фильтра; по 24 | `suppliers.PublicSupplierSQL`: `is_supplier`, `status = 'active'`, `verified_request_id IS NOT NULL`, не демо; `Cache-Control: no-store` |
+| GET `/suppliers/:id` | одна запись | одинаковый 404 `supplier_not_found` для несуществующей, непроверенной, приостановленной, демо и компании без направления |
+
+Не публикуются: БИН, адреса, телефоны, представитель, состав и контакты сотрудников, документы и история проверки, комментарии, предложения, цены, остатки и `seller_sku`. Снятие проверки (смена ключевого реквизита) или направления убирает компанию сразу: ответ не кэшируется.
+
+Страницы: `/brands`, `/brands/:id` (товары бренда и ссылка `/catalog?brand=:id`), `/suppliers` (поиск, город), `/suppliers/:id` (пустое состояние ассортимента до 3.4). Ссылки — в верхнем меню и подвале; бренд на странице товара ведёт на страницу бренда, если он привязан.

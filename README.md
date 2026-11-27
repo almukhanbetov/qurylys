@@ -9,7 +9,7 @@ B2B-маркетплейс строительных материалов для 
 ## Требования (Ubuntu)
 
 - Docker Engine + Docker Compose v2 (`docker compose version`)
-- Для разработки без Docker: Go 1.25, Node.js 24 (версия — `frontend/.nvmrc`, как в CI и Dockerfile), GNU make
+- Для разработки без Docker: Go 1.27 (минимальная версия языка в `go.mod` — 1.25), Node.js 26 (версия — `frontend/.nvmrc`, как в CI и Dockerfile), GNU make
 - VS Code: расширения *Go* (golang.go), *ESLint*, *Tailwind CSS IntelliSense*
 
 Порты по умолчанию (не пересекаются с типичными 3000/8080/5432):
