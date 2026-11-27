@@ -24,7 +24,8 @@ func NewService(repo *Repository, limit *ratelimit.Limiter) *Service {
 	return &Service{repo: repo, limit: limit}
 }
 
-var sourceKinds = []string{"manufacturer", "packaging", "official_catalog"}
+// SourceKinds are the accepted sources of a GTIN confirmation (S4.4).
+var SourceKinds = []string{"manufacturer", "packaging", "official_catalog"}
 
 // text allows an empty value (drafts); multiline keeps line breaks.
 func text(field, raw string, max int, multiline bool) (string, error) {
@@ -71,7 +72,7 @@ func clean(f Fields) (Fields, error) {
 	if f.SourceKind != nil && *f.SourceKind == "" {
 		f.SourceKind = nil
 	}
-	if f.SourceKind != nil && !slices.Contains(sourceKinds, *f.SourceKind) {
+	if f.SourceKind != nil && !slices.Contains(SourceKinds, *f.SourceKind) {
 		return f, httpx.Invalid("gtin_source", "unknown source")
 	}
 	return f, nil
@@ -120,7 +121,7 @@ func (s *Service) ConfirmGTIN(ctx context.Context, p auth.Principal, id int64, s
 	if err != nil {
 		return err
 	}
-	if source == "" || !slices.Contains(sourceKinds, kind) {
+	if source == "" || !slices.Contains(SourceKinds, kind) {
 		return httpx.Invalid("gtin_source", "the verified source is required")
 	}
 	return s.repo.confirmGTIN(ctx, p, id, submissionNo, kind, source)

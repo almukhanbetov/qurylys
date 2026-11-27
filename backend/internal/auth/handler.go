@@ -3,7 +3,7 @@ package auth
 import (
 	"log/slog"
 	"net/http"
-	"strings"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 
@@ -43,9 +43,10 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	m.PUT("/active-company", h.setActive)
 
 	ad := rg.Group("/admin", httpx.NoStore, h.RequireUser, h.RequireRole(RoleAdmin))
-	ad.GET("/users", h.adminUsers)
 	ad.PUT("/users/:id/mrx", h.adminSetMRX)
-	ad.PUT("/users/:id/catalog-moderate", h.adminSetCatalogModerate)
+	ad.PUT("/users/:id/permissions/:permission", h.adminSetPermission)
+	// Kept for existing clients: the same as permissions/catalog.moderate.
+	ad.PUT("/users/:id/catalog-moderate", func(c *gin.Context) { h.setPermission(c, PermCatalogModerate) })
 }
 
 // respond writes the error, or data with the given status (204 when data is nil).
@@ -242,16 +243,6 @@ func (h *Handler) setActive(c *gin.Context) {
 	h.respond(c, 0, nil, h.svc.repo.setActiveCompany(c.Request.Context(), Current(c), b.CompanyID))
 }
 
-func (h *Handler) adminUsers(c *gin.Context) {
-	q := strings.TrimSpace(c.Query("q"))
-	if len(q) > 200 || strings.Contains(q, "\x00") || strings.ToValidUTF8(q, "") != q {
-		httpx.BadRequest(c, "invalid_q", "q: invalid")
-		return
-	}
-	list, err := h.svc.repo.listUsers(c.Request.Context(), q)
-	h.respond(c, http.StatusOK, list, err)
-}
-
 func (h *Handler) adminSetMRX(c *gin.Context) {
 	id, ok := httpx.PathID(c, "id")
 	var b struct {
@@ -263,7 +254,16 @@ func (h *Handler) adminSetMRX(c *gin.Context) {
 	h.respond(c, 0, nil, h.svc.repo.setRole(c.Request.Context(), Current(c).UserID, id, RoleMRX, b.Enabled))
 }
 
-func (h *Handler) adminSetCatalogModerate(c *gin.Context) {
+func (h *Handler) adminSetPermission(c *gin.Context) {
+	perm := c.Param("permission")
+	if !slices.Contains(GrantablePermissions, perm) {
+		httpx.Fail(c, h.log, errNotFound)
+		return
+	}
+	h.setPermission(c, perm)
+}
+
+func (h *Handler) setPermission(c *gin.Context, perm string) {
 	id, ok := httpx.PathID(c, "id")
 	var b struct {
 		Enabled bool `json:"enabled"`
@@ -271,5 +271,5 @@ func (h *Handler) adminSetCatalogModerate(c *gin.Context) {
 	if !ok || !httpx.BindJSON(c, &b) {
 		return
 	}
-	h.respond(c, 0, nil, h.svc.repo.setPermission(c.Request.Context(), Current(c).UserID, id, PermCatalogModerate, b.Enabled))
+	h.respond(c, 0, nil, h.svc.repo.setPermission(c.Request.Context(), Current(c).UserID, id, perm, b.Enabled))
 }

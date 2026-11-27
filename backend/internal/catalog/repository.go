@@ -422,9 +422,10 @@ func (r *Repository) decide(ctx context.Context, p auth.Principal, id int64, sub
 			// Publishes the shared card only; no offer is created.
 			var productID int64
 			err := tx.QueryRowContext(ctx, `
-				INSERT INTO products (category_id, slug, name_kk, name_ru, description_kk, description_ru, brand, unit,
+				INSERT INTO products (category_id, slug, name_kk, name_ru, description_kk, description_ru, brand, brand_id, unit,
 					gtin, gtin_source_kind, gtin_source, gtin_confirmed_at, gtin_confirmed_by, needs_review)
-				SELECT category_id, $2, name_kk, name_ru, description_kk, description_ru, NULLIF(brand, ''), unit,
+				SELECT category_id, $2, name_kk, name_ru, description_kk, description_ru, NULLIF(brand, ''),
+					(SELECT b.id FROM brands b WHERE lower(b.name) = lower(regexp_replace(btrim(catalog_requests.brand), '\s+', ' ', 'g'))), unit,
 					gtin, confirmed_source_kind, confirmed_source, gtin_confirmed_at, gtin_confirmed_by, FALSE
 				FROM catalog_requests WHERE id = $1 RETURNING id`, id, "p-"+strings.ToLower(rand.Text())).Scan(&productID)
 			if database.UniqueViolation(err) == "products_gtin_key" {

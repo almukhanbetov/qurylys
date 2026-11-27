@@ -12,8 +12,11 @@ const (
 	RoleMRX   = "mrx"
 	RoleAdmin = "admin"
 
-	// PermCatalogModerate is a permission, not a role: no role implies it.
-	PermCatalogModerate = "catalog.moderate"
+	// Permissions are not roles: no role implies them. An administrator grants
+	// and revokes them (GrantablePermissions); keep in sync with platform_permissions_valid.
+	PermCatalogModerate   = "catalog.moderate"   // requests, shared cards, GTIN, blocking
+	PermCatalogCategories = "catalog.categories" // category tree
+	PermCatalogBrands     = "catalog.brands"     // brand directory
 
 	purposeRegister   = "register"
 	purposeReset      = "reset_password"
@@ -24,6 +27,9 @@ const (
 	challengeTTL    = 15 * time.Minute
 	maxCodeAttempts = 5
 )
+
+// GrantablePermissions are what an administrator may grant; roles are not among them.
+var GrantablePermissions = []string{PermCatalogModerate, PermCatalogCategories, PermCatalogBrands}
 
 var (
 	errUnauthorized  = httpx.NewError(http.StatusUnauthorized, "unauthorized", "Sign in to continue")
@@ -86,15 +92,6 @@ type Session struct {
 	CreatedAt  time.Time `json:"created_at"`
 	LastSeenAt time.Time `json:"last_seen_at"`
 	Current    bool      `json:"current"`
-}
-
-type AdminUser struct {
-	ID            int64    `json:"id"`
-	FullName      string   `json:"full_name"`
-	Email         *string  `json:"email"`
-	Phone         *string  `json:"phone"`
-	PlatformRoles []string `json:"platform_roles"`
-	Permissions   []string `json:"platform_permissions"`
 }
 
 type challenge struct {

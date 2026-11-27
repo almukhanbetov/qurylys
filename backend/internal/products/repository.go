@@ -58,7 +58,7 @@ func escapeLike(s string) string {
 // buildWhere returns the CTE prefix (for category subtree), the WHERE clause and args.
 func buildWhere(f ListFilter) (cte string, where string, b *queryBuilder) {
 	b = &queryBuilder{}
-	conds := []string{"p.is_active", "cat.is_active"}
+	conds := []string{"p.is_active", "p.blocked_at IS NULL", "cat.is_active"}
 
 	if f.CategorySlug != "" {
 		cte = `WITH RECURSIVE subtree AS (
@@ -154,7 +154,7 @@ func (r *Repository) Get(ctx context.Context, id int64) (*Detail, error) {
 	var minPrice sql.NullInt64
 	var attrs []byte
 	err := r.db.QueryRowContext(ctx, q+offerStatsJoin+`
-		WHERE p.id = $1 AND p.is_active AND cat.is_active`, id).Scan(
+		WHERE p.id = $1 AND p.is_active AND p.blocked_at IS NULL AND cat.is_active`, id).Scan(
 		&d.ID, &d.Slug, &d.CatalogNo, &d.GTIN, &d.NameKK, &d.NameRU, &d.Brand, &d.Unit, &d.IsDemo,
 		&d.Category.ID, &d.Category.Slug, &d.Category.NameKK, &d.Category.NameRU,
 		&minPrice, &d.OfferCount,

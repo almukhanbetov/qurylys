@@ -535,7 +535,7 @@ func TestVerificationMigrationKeepsData(t *testing.T) {
 	sum := func() (s string) {
 		must(testDB.QueryRow(`SELECT (SELECT md5(string_agg(concat_ws('|', id, slug, name, bin, city, legal_address, status), ',' ORDER BY id)) FROM companies)
 			|| (SELECT md5(string_agg(u::text, ',' ORDER BY id)) FROM users u) || (SELECT md5(string_agg(m::text, ',' ORDER BY company_id, user_id)) FROM company_members m)
-			|| (SELECT md5(string_agg(o::text, ',' ORDER BY id)) FROM offers o) || (SELECT md5(string_agg(p::text, ',' ORDER BY id)) FROM products p)`).Scan(&s))
+			|| (SELECT md5(string_agg(o::text, ',' ORDER BY id)) FROM offers o) || (SELECT md5(string_agg((to_jsonb(p) - '{version,brand_id,blocked_at,block_reason,blocked_by}'::text[])::text, ',' ORDER BY id)) FROM products p)`).Scan(&s))
 		return s
 	}
 	before := sum()

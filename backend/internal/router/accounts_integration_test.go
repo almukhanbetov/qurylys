@@ -632,7 +632,7 @@ func TestMigrationKeepsData(t *testing.T) {
 	ctx := context.Background()
 	count := func() (s string) {
 		must(testDB.QueryRow(`SELECT (SELECT md5(string_agg(concat(id, slug, name, city, status), '|' ORDER BY id)) FROM companies WHERE is_demo)
-			|| (SELECT md5(string_agg(o::text, '|' ORDER BY id)) FROM offers o) || (SELECT md5(string_agg(p::text, '|' ORDER BY id)) FROM products p)`).Scan(&s))
+			|| (SELECT md5(string_agg(o::text, '|' ORDER BY id)) FROM offers o) || (SELECT md5(string_agg((to_jsonb(p) - '{version,brand_id,blocked_at,block_reason,blocked_by}'::text[])::text, '|' ORDER BY id)) FROM products p)`).Scan(&s))
 		return s
 	}
 	before := count()

@@ -288,7 +288,7 @@ export type Me = {
   email: string | null;
   phone: string | null;
   platform_roles: ("mrx" | "admin")[];
-  platform_permissions: "catalog.moderate"[];
+  platform_permissions: PlatformPermission[];
   companies: Membership[];
   active_company_id: number | null;
   pending_invitations: number;
@@ -339,6 +339,164 @@ export type MyInvitation = {
   expires_at: string;
 };
 
-export type AdminUser = Pick<Me, "id" | "full_name" | "email" | "phone" | "platform_roles" | "platform_permissions">;
+/** Granted by an administrator; no role implies them. Keep in sync with auth.GrantablePermissions. */
+export const PLATFORM_PERMISSIONS = ["catalog.moderate", "catalog.categories", "catalog.brands"] as const;
+export type PlatformPermission = (typeof PLATFORM_PERMISSIONS)[number];
+export type PlatformRole = "mrx" | "admin";
+
+export type Paged<T> = { items: T[]; page: number; total: number; total_pages: number };
+
+export type AdminUserItem = {
+  id: number;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  status: "active" | "blocked";
+  created_at: string;
+  platform_roles: PlatformRole[];
+  platform_permissions: PlatformPermission[];
+  company_count: number;
+};
+
+export type UserAccessFilter = "" | "staff" | "none" | PlatformRole | PlatformPermission;
+export type UserFilter = { q: string; access: UserAccessFilter; membership: "" | "with" | "without"; status: "" | "active" | "blocked"; page: number };
+
+export type AdminUserDetail = {
+  id: number;
+  full_name: string;
+  email: string | null;
+  email_verified_at: string | null;
+  phone: string | null;
+  phone_verified_at: string | null;
+  status: "active" | "blocked";
+  created_at: string;
+  last_seen_at: string | null;
+  grants: { kind: "role" | "permission"; value: string; granted_at: string }[];
+  history: { action: string; value: string; actor: string; created_at: string }[];
+  memberships: {
+    company_id: number;
+    name: string;
+    role: CompanyRole;
+    status: "active" | "suspended";
+    is_demo: boolean;
+    verification: VerificationStatus;
+    joined_at: string;
+  }[];
+};
+
+export type AdminCompanyItem = {
+  id: number;
+  name: string;
+  bin: string | null;
+  city: string | null;
+  is_buyer: boolean;
+  is_supplier: boolean;
+  status: "active" | "suspended";
+  is_demo: boolean;
+  verification: VerificationStatus;
+  member_count: number;
+};
+
+export type AdminCompanyMembers = {
+  company: AdminCompanyItem;
+  members: { user_id: number; full_name: string; role: CompanyRole; joined_at: string }[];
+};
+
+export type AdminCategory = {
+  id: number;
+  parent_id: number | null;
+  slug: string;
+  name_kk: string;
+  name_ru: string;
+  sort_order: number;
+  is_active: boolean;
+  version: number;
+  product_count: number;
+  child_count: number;
+  request_count: number;
+};
+
+export type CategoryInput = { parent_id: number | null; slug?: string; name_kk: string; name_ru: string; sort_order: number };
+
+export type Brand = { id: number; name: string; product_count: number; version: number };
+export type LegacyBrandText = { text: string; product_count: number; match: Brand | null };
+
+export const CARD_STATES = ["needs_review", "reviewed", "blocked", "no_gtin", "real", "demo"] as const;
+export type CardState = (typeof CARD_STATES)[number];
+export type CardFilter = { q: string; category_id: number | null; brand: string; state: CardState | ""; page: number };
+
+export type AdminCardItem = {
+  id: number;
+  catalog_no: string;
+  name_kk: string;
+  name_ru: string;
+  brand: string | null;
+  brand_id: number | null;
+  category_id: number;
+  category_kk: string;
+  category_ru: string;
+  unit: Unit;
+  gtin: string | null;
+  needs_review: boolean;
+  is_demo: boolean;
+  blocked: boolean;
+  offer_count: number;
+};
+
+export type CardFields = {
+  category_id: number;
+  name_kk: string;
+  name_ru: string;
+  description_kk: string;
+  description_ru: string;
+  brand_id: number | null;
+  unit: Unit;
+};
+
+export type GtinConfirmation = { gtin: string; source_kind: GtinSourceKind; source: string };
+
+export type CardEvent = {
+  id: number;
+  action: string;
+  actor: string;
+  comment: string;
+  details: { kind?: string; old?: Record<string, unknown>; new?: Record<string, unknown> } | null;
+  created_at: string;
+};
+
+export type AdminCard = AdminCardItem & {
+  description_kk: string;
+  description_ru: string;
+  attributes: { key: string; name_kk: string; name_ru: string; value: string }[];
+  gtin_source_kind: GtinSourceKind | null;
+  gtin_source: string | null;
+  gtin_confirmed_at: string | null;
+  blocked_at: string | null;
+  block_reason: string | null;
+  version: number;
+  updated_at: string;
+  offer_stats: { total: number; draft: number; published: number; hidden: number; demo: number };
+  request_id: number | null;
+  conflict: boolean;
+  events: CardEvent[];
+};
+
+export const SYSTEM_ROLE_CODES = ["MP", "SL", "MRX", "GD", "BD", "ACC", "WH", "DR", "SR", "OP", "SV", "LG", "PR", "CA", "AU", "HR", "TS", "CC", "SA"] as const;
+export type SystemRoleCode = (typeof SYSTEM_ROLE_CODES)[number];
+
+export type SystemRole = {
+  code: SystemRoleCode;
+  contour: "marketplace" | "erp" | "platform";
+  scope: "platform" | "organization";
+  branch_scope: "none" | "all" | "assigned" | "unspecified";
+  status: "implemented" | "partial" | "planned";
+  via: "platform_role" | "company_direction" | "none";
+  assignable: boolean;
+  holders: number;
+  companies: number;
+};
+
+export type AccessMechanism = { key: "owner" | "employee" | "admin" | PlatformPermission; holders: number };
+export type RoleDirectory = { roles: SystemRole[]; mechanisms: AccessMechanism[] };
 
 export type ApiErrorBody = { error: { code: string; message: string } };

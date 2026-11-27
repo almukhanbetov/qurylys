@@ -1,5 +1,5 @@
-import { AdminView } from "@/features/account/AdminView";
+import { AdminHome } from "@/features/admin/AdminHome";
 
 export default function Page() {
-  return <AdminView />;
+  return <AdminHome />;
 }

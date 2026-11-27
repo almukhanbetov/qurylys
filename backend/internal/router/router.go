@@ -8,7 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/qurylys/qurylys/backend/internal/admin"
 	"github.com/qurylys/qurylys/backend/internal/auth"
+	"github.com/qurylys/qurylys/backend/internal/brands"
+	"github.com/qurylys/qurylys/backend/internal/cards"
 	"github.com/qurylys/qurylys/backend/internal/catalog"
 	"github.com/qurylys/qurylys/backend/internal/categories"
 	"github.com/qurylys/qurylys/backend/internal/companies"
@@ -20,6 +23,7 @@ import (
 	"github.com/qurylys/qurylys/backend/internal/offers"
 	"github.com/qurylys/qurylys/backend/internal/products"
 	"github.com/qurylys/qurylys/backend/internal/ratelimit"
+	"github.com/qurylys/qurylys/backend/internal/roles"
 	"github.com/qurylys/qurylys/backend/internal/selleroffers"
 	"github.com/qurylys/qurylys/backend/internal/verification"
 )
@@ -40,7 +44,8 @@ func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender
 
 	v1 := r.Group("/api/v1", middleware.CSRF(cfg.CORSAllowedOrigins))
 	health.NewHandler(db, log).Register(v1)
-	categories.NewHandler(categories.NewService(categories.NewRepository(db)), log).Register(v1)
+	categoriesHandler := categories.NewHandler(categories.NewService(categories.NewRepository(db)), log)
+	categoriesHandler.Register(v1)
 	products.NewHandler(products.NewService(products.NewRepository(db)), log).Register(v1)
 	offers.NewHandler(offers.NewService(offers.NewRepository(db)), log).Register(v1)
 
@@ -56,6 +61,16 @@ func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender
 
 	selleroffers.NewHandler(selleroffers.NewService(selleroffers.NewRepository(db), limiter), log).
 		Register(v1, authHandler.RequireUser)
+
+	// Administration: each section has its own permission; none follows from a role.
+	admin.NewHandler(admin.NewRepository(db), log).Register(v1, authHandler.RequireUser, authHandler.RequireRole(auth.RoleAdmin))
+	categoriesHandler.RegisterAdmin(v1, authHandler.RequireUser, authHandler.RequirePermission(auth.PermCatalogCategories))
+	brands.NewHandler(brands.NewService(brands.NewRepository(db), limiter), log).Register(v1, authHandler.RequireUser,
+		authHandler.RequirePermission(auth.PermCatalogBrands),
+		authHandler.RequireAnyPermission(auth.PermCatalogBrands, auth.PermCatalogModerate))
+	roles.NewHandler(roles.NewRepository(db), log).Register(v1, authHandler.RequireUser, authHandler.RequireRole(auth.RoleAdmin))
+	cards.NewHandler(cards.NewService(cards.NewRepository(db), limiter), log).
+		Register(v1, authHandler.RequireUser, authHandler.RequirePermission(auth.PermCatalogModerate))
 
 	return r
 }

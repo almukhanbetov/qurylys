@@ -10,6 +10,7 @@ import { useSubmit } from "@/hooks/useSubmit";
 import type { Me } from "@/types/api";
 import { Alert } from "@/components/ui/Field";
 import { MeProvider } from "./MeContext";
+import { adminSections } from "@/features/admin/access";
 
 export function AccountShell({ me, children }: { me: Me; children: ReactNode }) {
   const { t } = useI18n();
@@ -40,7 +41,7 @@ export function AccountShell({ me, children }: { me: Me; children: ReactNode }) 
     ...(me.platform_permissions.includes("catalog.moderate")
       ? [{ href: "/account/catalog-moderation", label: t.catalogRequests.moderationTitle }]
       : []),
-    ...(me.platform_roles.includes("admin") ? [{ href: "/account/admin", label: t.account.admin }] : []),
+    ...(adminSections(me).length > 0 ? [{ href: "/account/admin", label: t.admin.title }] : []),
   ];
   const isActive = (href: string) => (href === "/account" ? pathname === href : pathname.startsWith(href));
 

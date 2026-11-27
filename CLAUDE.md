@@ -25,10 +25,14 @@ B2B-маркетплейс строительных материалов для 
 - SQL — только параметры `$n`. Пользовательский ввод никогда не попадает в текст запроса. Имена полей сортировки — только из фиксированной карты (`products.sortClauses`).
 - Ошибки клиенту: `{"error": {"code", "message"}}` через `internal/httpx`. Внутренние ошибки логируются, клиенту — общее сообщение.
 - Конфигурация — только переменные окружения (`internal/config`). Секреты не коммитить; `.env.example` без реальных значений.
-- Межмодульные зависимости — без циклов (сейчас `products` использует `offers.AvailableCondition`, `companies` использует `auth.Principal`).
+- Межмодульные зависимости — без циклов (сейчас `products` использует `offers.AvailableCondition`, `companies` использует `auth.Principal`, `cards` — `catalog.NormalizeGTIN` и `companies.InvolvedSQL`).
 - Доступ: сессии — `internal/auth` (HttpOnly-cookie), CSRF — `middleware.CSRF` на всём `/api/v1`. Любой запрос к данным компании проходит через `companies.Authorize` (членство → активная компания → роль). См. `docs/accounts.md`.
 - Статус проверки компании меняется только через `internal/verification` (и триггеры миграции 00008); список ключевых реквизитов — в триггере, `companies.keyChange`, `verification.keyChanged` и `CompanyForm.KEY_FIELDS`, меняются вместе. Файлы — только через обработчики с проверкой прав.
-- `catalog.moderate` — разрешение (`platform_permissions`), не роль; проверяется в транзакции действия (`auth.HasPermission`). Карточка товара создаётся только одобрением заявки (`internal/catalog`) или seed; GTIN — только подтверждённый.
+- `catalog.moderate`, `catalog.categories`, `catalog.brands` — разрешения (`platform_permissions`, `auth.GrantablePermissions`), не роли; каждое проверяется в транзакции действия (`auth.HasPermission`), ни одно не следует из `admin`/`mrx` или из другого. Список меняется вместе с CHECK `platform_permissions_valid`.
+- Карточка товара создаётся только одобрением заявки (`internal/catalog`), модератором с подтверждённым GTIN (`internal/cards`) или seed; GTIN — только подтверждённый. Правка карточки с настоящими предложениями — только косметика (N3: `cards.sameNumbers` и триггер `products_linked_guard`). Демо-карточки меняет только seed.
+- `products.brand` — отображаемый текст; у привязанной карточки его ставит триггер из `brands`. Похожие тексты брендов не объединять автоматически.
+- 19 ролей ТЗ — справочник `system_roles` (только чтение, `internal/roles`): он ничего не выдаёт. Действуют `owner`/`employee`, `admin`, `mrx` и разрешения каталога; `owner` ≠ CA/GD, `admin` ≠ SA. Будущие назначения — только по `system_roles.code`, у ERP-ролей с `organization_id`.
+- Администратор (`internal/admin`) видит пользователей и состав компаний, но не данные компаний; паролей, хешей, токенов и кодов в ответах нет.
 - Деньги и количества предложений — `internal/quantity`, `sale_rule_ok` и `frontend/src/lib/quantity.ts` меняются вместе. Опт (`offer_price_tiers`) не читать в публичных запросах. `owner_state = published` не означает публичный показ (docs/catalog.md).
 - Персональные ответы — `Cache-Control: no-store`. Коды, пароли и токены не попадают в логи, аудит и ответы API.
 

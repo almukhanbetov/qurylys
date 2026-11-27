@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 
@@ -66,6 +67,18 @@ func (h *Handler) RequireRole(role string) gin.HandlerFunc {
 func (h *Handler) RequirePermission(permission string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !Current(c).Can(permission) {
+			httpx.Fail(c, h.log, errForbidden)
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequireAnyPermission allows holders of at least one of the permissions.
+func (h *Handler) RequireAnyPermission(permissions ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		p := Current(c)
+		if !slices.ContainsFunc(permissions, p.Can) {
 			httpx.Fail(c, h.log, errForbidden)
 			return
 		}

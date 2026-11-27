@@ -18,7 +18,7 @@ func (r *Repository) ProductVisible(ctx context.Context, productID int64) (bool,
 	err := r.db.QueryRowContext(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM products p JOIN categories c ON c.id = p.category_id
-			WHERE p.id = $1 AND p.is_active AND c.is_active
+			WHERE p.id = $1 AND p.is_active AND p.blocked_at IS NULL AND c.is_active
 		)`, productID).Scan(&ok)
 	if err != nil {
 		return false, fmt.Errorf("check product: %w", err)

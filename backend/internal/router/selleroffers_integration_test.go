@@ -533,7 +533,7 @@ func TestOffersMigration(t *testing.T) {
 	card := realCard(t, "piece")
 	sum := func() (s string) {
 		must(testDB.QueryRow(`SELECT (SELECT md5(string_agg(concat_ws('|', id, product_id, supplier_company_id, price_tiyn, stock_quantity, min_order_quantity, is_active, is_demo, city), ',' ORDER BY id)) FROM offers WHERE is_demo)
-			|| (SELECT md5(string_agg(p::text, ',' ORDER BY id)) FROM products p) || (SELECT md5(string_agg(c::text, ',' ORDER BY id)) FROM companies c)
+			|| (SELECT md5(string_agg((to_jsonb(p) - '{version,brand_id,blocked_at,block_reason,blocked_by}'::text[])::text, ',' ORDER BY id)) FROM products p) || (SELECT md5(string_agg(c::text, ',' ORDER BY id)) FROM companies c)
 			|| (SELECT COALESCE(md5(string_agg(r::text, ',' ORDER BY id)), '') FROM catalog_requests r)`).Scan(&s))
 		return
 	}

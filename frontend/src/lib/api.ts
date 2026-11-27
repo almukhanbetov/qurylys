@@ -1,5 +1,21 @@
 import type {
-  AdminUser,
+  AdminCard,
+  AdminCardItem,
+  AdminCategory,
+  AdminCompanyItem,
+  AdminCompanyMembers,
+  AdminUserDetail,
+  AdminUserItem,
+  Brand,
+  CardFields,
+  CardFilter,
+  CategoryInput,
+  GtinConfirmation,
+  LegacyBrandText,
+  Paged,
+  PlatformPermission,
+  RoleDirectory,
+  UserFilter,
   CatalogRequest,
   CatalogRequestFields,
   CategoryNode,
@@ -233,11 +249,53 @@ export const sellerOfferApi = {
   hide: (companyId: number, id: number, version: number) => post(`/companies/${companyId}/offers/${id}/hide`, { version }),
 };
 
+function query(params: Record<string, string | number | null | undefined>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== "" && v !== null && v !== undefined) q.set(k, String(v));
+  return q.toString();
+}
+
 export const adminApi = {
-  setCatalogModerate: (id: number, enabled: boolean) =>
-    request<void>(`/admin/users/${id}/catalog-moderate`, { method: "PUT", body: { enabled } }),
-  users: (q: string, signal?: AbortSignal) =>
-    request<AdminUser[]>(`/admin/users?q=${encodeURIComponent(q)}`, { signal }),
+  users: (f: UserFilter, signal?: AbortSignal) => request<Paged<AdminUserItem>>(`/admin/users?${query(f)}`, { signal }),
+  user: (id: number, signal?: AbortSignal) => request<AdminUserDetail>(`/admin/users/${id}`, { signal }),
   setMrx: (id: number, enabled: boolean) =>
     request<void>(`/admin/users/${id}/mrx`, { method: "PUT", body: { enabled } }),
+  setPermission: (id: number, permission: PlatformPermission, enabled: boolean) =>
+    request<void>(`/admin/users/${id}/permissions/${permission}`, { method: "PUT", body: { enabled } }),
+  companies: (q: string, page: number, signal?: AbortSignal) =>
+    request<Paged<AdminCompanyItem>>(`/admin/companies?${query({ q, page })}`, { signal }),
+  companyMembers: (id: number, signal?: AbortSignal) =>
+    request<AdminCompanyMembers>(`/admin/companies/${id}/members`, { signal }),
+  roles: (signal?: AbortSignal) => request<RoleDirectory>("/admin/roles", { signal }),
+};
+
+export const categoryAdminApi = {
+  list: (signal?: AbortSignal) => request<AdminCategory[]>("/admin/categories", { signal }),
+  create: (b: CategoryInput) => request<{ id: number }>("/admin/categories", { method: "POST", body: b }),
+  update: (id: number, version: number, b: CategoryInput) =>
+    request<void>(`/admin/categories/${id}`, { method: "PUT", body: { ...b, version } }),
+  remove: (id: number, version: number) => request<void>(`/admin/categories/${id}`, { method: "DELETE", body: { version } }),
+};
+
+export const brandApi = {
+  list: (q: string, page: number, signal?: AbortSignal) => request<Paged<Brand>>(`/admin/brands?${query({ q, page })}`, { signal }),
+  unlinked: (q: string, signal?: AbortSignal) => request<LegacyBrandText[]>(`/admin/brands/unlinked?${query({ q })}`, { signal }),
+  create: (name: string) => request<{ id: number }>("/admin/brands", { method: "POST", body: { name } }),
+  rename: (id: number, version: number, name: string) =>
+    request<void>(`/admin/brands/${id}`, { method: "PUT", body: { version, name } }),
+  remove: (id: number, version: number) => request<void>(`/admin/brands/${id}`, { method: "DELETE", body: { version } }),
+  link: (id: number, text: string) => request<{ linked: number }>(`/admin/brands/${id}/link`, { method: "POST", body: { text } }),
+};
+
+export const cardApi = {
+  list: (f: CardFilter, signal?: AbortSignal) => request<Paged<AdminCardItem>>(`/admin/products?${query(f)}`, { signal }),
+  get: (id: number, signal?: AbortSignal) => request<AdminCard>(`/admin/products/${id}`, { signal }),
+  create: (f: CardFields, gtin: GtinConfirmation) =>
+    request<{ id: number }>("/admin/products", { method: "POST", body: { ...f, gtin } }),
+  update: (id: number, version: number, f: CardFields, reason: string) =>
+    request<void>(`/admin/products/${id}`, { method: "PUT", body: { ...f, version, reason } }),
+  confirmGtin: (id: number, version: number, g: GtinConfirmation, reason: string) =>
+    post(`/admin/products/${id}/gtin`, { ...g, version, reason }),
+  block: (id: number, version: number, reason: string) => post(`/admin/products/${id}/block`, { version, reason }),
+  unblock: (id: number, version: number, reason: string) => post(`/admin/products/${id}/unblock`, { version, reason }),
 };

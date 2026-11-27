@@ -313,32 +313,6 @@ func (r *Repository) setActiveCompany(ctx context.Context, p Principal, companyI
 	return nil
 }
 
-func (r *Repository) listUsers(ctx context.Context, q string) ([]AdminUser, error) {
-	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT u.id, u.full_name, u.email, u.phone,
-			COALESCE((SELECT string_agg(role, ',' ORDER BY role) FROM platform_roles pr WHERE pr.user_id = u.id), ''),
-			COALESCE((SELECT string_agg(permission, ',' ORDER BY permission) FROM platform_permissions pp WHERE pp.user_id = u.id), '')
-		FROM users u
-		WHERE u.full_name ILIKE $1 OR u.email ILIKE $1 OR u.phone ILIKE $1
-		ORDER BY u.id DESC LIMIT 50`, "%"+esc+"%")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []AdminUser{}
-	for rows.Next() {
-		var u AdminUser
-		var roles, perms string
-		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Phone, &roles, &perms); err != nil {
-			return nil, err
-		}
-		u.PlatformRoles, u.Permissions = splitRoles(roles), splitRoles(perms)
-		out = append(out, u)
-	}
-	return out, rows.Err()
-}
-
 func (r *Repository) setRole(ctx context.Context, actorID, userID int64, role string, enabled bool) error {
 	return r.setGrant(ctx, actorID, userID, "platform_role", "role", role, enabled,
 		`INSERT INTO platform_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING`,

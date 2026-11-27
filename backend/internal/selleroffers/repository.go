@@ -20,7 +20,7 @@ type Repository struct{ db *sql.DB }
 func NewRepository(db *sql.DB) *Repository { return &Repository{db: db} }
 
 // usableCard is a real card that a supplier may offer.
-const usableCard = `p.is_active AND cat.is_active AND NOT p.is_demo AND NOT p.needs_review AND p.gtin IS NOT NULL`
+const usableCard = `p.is_active AND cat.is_active AND NOT p.is_demo AND NOT p.needs_review AND p.gtin IS NOT NULL AND p.blocked_at IS NULL`
 
 // reasonsSQL lists unmet publication conditions. It is the only definition.
 const reasonsSQL = `array_to_string(ARRAY[
@@ -29,6 +29,7 @@ const reasonsSQL = `array_to_string(ARRAY[
 	CASE WHEN c.verified_request_id IS NULL THEN 'company_not_verified' END,
 	CASE WHEN NOT (p.is_active AND cat.is_active) THEN 'card_inactive' END,
 	CASE WHEN p.is_demo THEN 'card_demo' END,
+	CASE WHEN p.blocked_at IS NOT NULL THEN 'card_blocked' END,
 	CASE WHEN p.needs_review THEN 'card_needs_review' END,
 	CASE WHEN p.gtin IS NULL THEN 'card_gtin_unconfirmed' END,
 	CASE WHEN o.price_tiyn IS NULL THEN 'price_missing' END,
