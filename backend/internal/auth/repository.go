@@ -187,22 +187,23 @@ func (r *Repository) createSession(ctx context.Context, userID int64, tokenHash 
 
 func (r *Repository) principal(ctx context.Context, tokenHash []byte) (*Principal, error) {
 	var p Principal
-	var roles string
+	var roles, perms string
 	var stale bool
 	err := r.db.QueryRowContext(ctx, `
 		SELECT s.id, s.user_id, COALESCE(s.active_company_id, 0), s.last_seen_at < now() - interval '5 minutes',
-			COALESCE((SELECT string_agg(role, ',' ORDER BY role) FROM platform_roles pr WHERE pr.user_id = u.id), '')
+			COALESCE((SELECT string_agg(role, ',' ORDER BY role) FROM platform_roles pr WHERE pr.user_id = u.id), ''),
+			COALESCE((SELECT string_agg(permission, ',' ORDER BY permission) FROM platform_permissions pp WHERE pp.user_id = u.id), '')
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = $1 AND s.expires_at > now() AND u.status = 'active'
 			AND s.last_seen_at > now() - make_interval(secs => $2)`, tokenHash, sessionIdle.Seconds()).
-		Scan(&p.SessionID, &p.UserID, &p.ActiveCompanyID, &stale, &roles)
+		Scan(&p.SessionID, &p.UserID, &p.ActiveCompanyID, &stale, &roles, &perms)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("load session: %w", err)
 	}
-	p.Roles = splitRoles(roles)
+	p.Roles, p.Permissions = splitRoles(roles), splitRoles(perms)
 	if stale {
 		if _, err := r.db.ExecContext(ctx, `UPDATE sessions SET last_seen_at = now() WHERE id = $1`, p.SessionID); err != nil {
 			return nil, err
@@ -260,7 +261,7 @@ func (r *Repository) sessions(ctx context.Context, p Principal) ([]Session, erro
 }
 
 func (r *Repository) me(ctx context.Context, p Principal) (Me, error) {
-	m := Me{PlatformRoles: p.Roles, Companies: []Membership{}}
+	m := Me{PlatformRoles: p.Roles, Permissions: p.Permissions, Companies: []Membership{}}
 	if p.ActiveCompanyID != 0 {
 		m.ActiveCompanyID = &p.ActiveCompanyID
 	}
@@ -316,7 +317,8 @@ func (r *Repository) listUsers(ctx context.Context, q string) ([]AdminUser, erro
 	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT u.id, u.full_name, u.email, u.phone,
-			COALESCE((SELECT string_agg(role, ',' ORDER BY role) FROM platform_roles pr WHERE pr.user_id = u.id), '')
+			COALESCE((SELECT string_agg(role, ',' ORDER BY role) FROM platform_roles pr WHERE pr.user_id = u.id), ''),
+			COALESCE((SELECT string_agg(permission, ',' ORDER BY permission) FROM platform_permissions pp WHERE pp.user_id = u.id), '')
 		FROM users u
 		WHERE u.full_name ILIKE $1 OR u.email ILIKE $1 OR u.phone ILIKE $1
 		ORDER BY u.id DESC LIMIT 50`, "%"+esc+"%")
@@ -327,17 +329,30 @@ func (r *Repository) listUsers(ctx context.Context, q string) ([]AdminUser, erro
 	out := []AdminUser{}
 	for rows.Next() {
 		var u AdminUser
-		var roles string
-		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Phone, &roles); err != nil {
+		var roles, perms string
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Phone, &roles, &perms); err != nil {
 			return nil, err
 		}
-		u.PlatformRoles = splitRoles(roles)
+		u.PlatformRoles, u.Permissions = splitRoles(roles), splitRoles(perms)
 		out = append(out, u)
 	}
 	return out, rows.Err()
 }
 
 func (r *Repository) setRole(ctx context.Context, actorID, userID int64, role string, enabled bool) error {
+	return r.setGrant(ctx, actorID, userID, "platform_role", "role", role, enabled,
+		`INSERT INTO platform_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		`DELETE FROM platform_roles WHERE user_id = $1 AND role = $2`)
+}
+
+func (r *Repository) setPermission(ctx context.Context, actorID, userID int64, permission string, enabled bool) error {
+	return r.setGrant(ctx, actorID, userID, "platform_permission", "permission", permission, enabled,
+		`INSERT INTO platform_permissions (user_id, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+		`DELETE FROM platform_permissions WHERE user_id = $1 AND permission = $2`)
+}
+
+// setGrant changes a role or permission and records it. The queries are constants.
+func (r *Repository) setGrant(ctx context.Context, actorID, userID int64, kind, key, value string, enabled bool, grant, revoke string) error {
 	return database.WithTx(ctx, r.db, func(tx *sql.Tx) error {
 		var exists bool
 		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE id = $1)`, userID).Scan(&exists); err != nil {
@@ -346,11 +361,11 @@ func (r *Repository) setRole(ctx context.Context, actorID, userID int64, role st
 		if !exists {
 			return errNotFound
 		}
-		q, action := `INSERT INTO platform_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING`, "platform_role.granted"
+		q, action := grant, kind+".granted"
 		if !enabled {
-			q, action = `DELETE FROM platform_roles WHERE user_id = $1 AND role = $2`, "platform_role.revoked"
+			q, action = revoke, kind+".revoked"
 		}
-		res, err := tx.ExecContext(ctx, q, userID, role)
+		res, err := tx.ExecContext(ctx, q, userID, value)
 		if err != nil {
 			return err
 		}
@@ -358,8 +373,14 @@ func (r *Repository) setRole(ctx context.Context, actorID, userID int64, role st
 			return nil // already in the requested state
 		}
 		return audit.Write(ctx, tx, audit.Event{ActorID: actorID, TargetUserID: userID, Action: action,
-			Details: map[string]any{"role": role}})
+			Details: map[string]any{key: value}})
 	})
+}
+
+// HasPermission re-checks a permission inside a transaction, like HasRole.
+func HasPermission(ctx context.Context, q database.Querier, userID int64, permission string) (ok bool, err error) {
+	err = q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM platform_permissions WHERE user_id = $1 AND permission = $2)`, userID, permission).Scan(&ok)
+	return ok, err
 }
 
 // HasRole re-checks a platform role inside a transaction, so that a revocation

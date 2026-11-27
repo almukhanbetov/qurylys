@@ -45,6 +45,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	ad := rg.Group("/admin", httpx.NoStore, h.RequireUser, h.RequireRole(RoleAdmin))
 	ad.GET("/users", h.adminUsers)
 	ad.PUT("/users/:id/mrx", h.adminSetMRX)
+	ad.PUT("/users/:id/catalog-moderate", h.adminSetCatalogModerate)
 }
 
 // respond writes the error, or data with the given status (204 when data is nil).
@@ -260,4 +261,15 @@ func (h *Handler) adminSetMRX(c *gin.Context) {
 		return
 	}
 	h.respond(c, 0, nil, h.svc.repo.setRole(c.Request.Context(), Current(c).UserID, id, RoleMRX, b.Enabled))
+}
+
+func (h *Handler) adminSetCatalogModerate(c *gin.Context) {
+	id, ok := httpx.PathID(c, "id")
+	var b struct {
+		Enabled bool `json:"enabled"`
+	}
+	if !ok || !httpx.BindJSON(c, &b) {
+		return
+	}
+	h.respond(c, 0, nil, h.svc.repo.setPermission(c.Request.Context(), Current(c).UserID, id, PermCatalogModerate, b.Enabled))
 }

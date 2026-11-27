@@ -469,7 +469,7 @@ func TestCompanyDetails(t *testing.T) {
 	// A supplier with offers stays a supplier.
 	upd["is_supplier"] = true
 	c.do("PUT", path, upd, 204, "", nil)
-	if _, err := testDB.Exec(`INSERT INTO offers (product_id, supplier_company_id, price_tiyn, is_active) SELECT min(id), $1, 100, FALSE FROM products`, id); err != nil {
+	if _, err := testDB.Exec(`INSERT INTO offers (product_id, supplier_company_id, price_tiyn, is_active) VALUES ($2, $1, 100, FALSE)`, id, realCard(t, "piece")); err != nil {
 		t.Fatal(err)
 	}
 	defer testDB.Exec(`DELETE FROM offers WHERE supplier_company_id = $1`, id)

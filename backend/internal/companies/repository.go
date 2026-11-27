@@ -16,6 +16,17 @@ type Repository struct{ db *sql.DB }
 
 func NewRepository(db *sql.DB) *Repository { return &Repository{db: db} }
 
+// InvolvedSQL is true when user $1 is or was a member of company c. Leaving the
+// company does not lift a conflict of interest.
+const InvolvedSQL = `(
+	EXISTS (SELECT 1 FROM company_members m WHERE m.company_id = c.id AND m.user_id = $1)
+	OR EXISTS (SELECT 1 FROM audit_events a WHERE a.company_id = c.id AND (
+		(a.actor_user_id = $1 AND a.action IN ('company.created', 'company.member_joined'))
+		OR (a.target_user_id = $1 AND a.action LIKE 'company.member%'))))`
+
+// IsNotFound reports that the caller is not a member (or the company does not exist).
+func IsNotFound(err error) bool { return errors.Is(err, errNotFound) }
+
 // access returns the user's role and the company status. Non-members get
 // "not found", so ids of foreign companies reveal nothing. With lock the company
 // row is locked, which serialises membership changes.

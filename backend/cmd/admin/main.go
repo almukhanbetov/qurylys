@@ -4,6 +4,7 @@
 //	admin create -contact <email|phone> -name "<full name>"   # password on stdin
 //	admin grant  -contact <email|phone>
 //	admin revoke -contact <email|phone>
+//	admin catalog-report                                      # read-only: what stage 3 will affect
 //	admin test-email -contact <email>                         # sends one test message over SMTP
 //
 // The password is read from standard input and never from arguments, the
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/qurylys/qurylys/backend/internal/auth"
+	"github.com/qurylys/qurylys/backend/internal/catalog"
 	"github.com/qurylys/qurylys/backend/internal/config"
 	"github.com/qurylys/qurylys/backend/internal/database"
 	"github.com/qurylys/qurylys/backend/internal/delivery"
@@ -36,7 +38,10 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: admin create|grant|revoke|test-email -contact <email|phone> [-name <full name>]")
+		return errors.New("usage: admin create|grant|revoke|test-email -contact <email|phone> [-name <full name>] | catalog-report")
+	}
+	if args[0] == "catalog-report" {
+		return catalogReport()
 	}
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	contact := fs.String("contact", "", "email or phone")
@@ -111,4 +116,19 @@ func testEmail(kind, to string) error {
 	}
 	fmt.Println("admin: the mail server accepted the message; check the inbox and spam")
 	return nil
+}
+
+func catalogReport() error {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		return errors.New("DATABASE_URL is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	db, err := database.Open(ctx, dsn, database.PoolConfig{MaxOpenConns: 1})
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	return catalog.Report(ctx, db, os.Stdout)
 }

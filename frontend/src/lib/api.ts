@@ -1,6 +1,16 @@
 import type {
   AdminUser,
+  CatalogRequest,
+  CatalogRequestFields,
   CategoryNode,
+  CompanyCatalogRequest,
+  GtinSourceKind,
+  ModerationPage,
+  OfferCard,
+  SellerOfferInput,
+  SellerOfferList,
+  SellerOfferView,
+  ModerationReview,
   Company,
   CompanyDetails,
   CompanyInvitation,
@@ -186,7 +196,46 @@ export const mrxApi = {
   documentUrl: (id: number, documentId: number) => `${baseUrl()}/mrx/requests/${id}/documents/${documentId}`,
 };
 
+export const catalogRequestApi = {
+  list: (companyId: number, signal?: AbortSignal) =>
+    request<CatalogRequest[]>(`/companies/${companyId}/catalog-requests`, { signal }),
+  get: (companyId: number, id: number, signal?: AbortSignal) =>
+    request<CompanyCatalogRequest>(`/companies/${companyId}/catalog-requests/${id}`, { signal }),
+  create: (companyId: number, f: CatalogRequestFields) =>
+    post<{ id: number }>(`/companies/${companyId}/catalog-requests`, f),
+  update: (companyId: number, id: number, body: CatalogRequestFields) =>
+    request<void>(`/companies/${companyId}/catalog-requests/${id}`, { method: "PUT", body }),
+  submit: (companyId: number, id: number) => post(`/companies/${companyId}/catalog-requests/${id}/submit`),
+};
+
+export const moderationApi = {
+  list: (status: ReviewStatus | "", page: number, signal?: AbortSignal) =>
+    request<ModerationPage>(`/catalog/moderation/requests?status=${status}&page=${page}`, { signal }),
+  get: (id: number, signal?: AbortSignal) => request<ModerationReview>(`/catalog/moderation/requests/${id}`, { signal }),
+  confirmGtin: (id: number, b: { submission_no: number; source_kind: GtinSourceKind; source: string }) =>
+    post(`/catalog/moderation/requests/${id}/gtin`, b),
+  decide: (id: number, b: { submission_no: number; decision: ReviewDecision; comment: string }) =>
+    post(`/catalog/moderation/requests/${id}/decision`, b),
+};
+
+export const sellerOfferApi = {
+  cards: (companyId: number, q: string, signal?: AbortSignal) =>
+    request<OfferCard[]>(`/companies/${companyId}/offer-cards?q=${encodeURIComponent(q)}`, { signal }),
+  list: (companyId: number, signal?: AbortSignal) => request<SellerOfferList>(`/companies/${companyId}/offers`, { signal }),
+  get: (companyId: number, id: number, signal?: AbortSignal) =>
+    request<SellerOfferView>(`/companies/${companyId}/offers/${id}`, { signal }),
+  create: (companyId: number, productId: number, f: SellerOfferInput) =>
+    post<{ id: number }>(`/companies/${companyId}/offers`, { product_id: productId, ...f }),
+  update: (companyId: number, id: number, version: number, f: SellerOfferInput) =>
+    request<void>(`/companies/${companyId}/offers/${id}`, { method: "PUT", body: { version, ...f } }),
+  publish: (companyId: number, id: number, version: number) =>
+    post(`/companies/${companyId}/offers/${id}/publish`, { version }),
+  hide: (companyId: number, id: number, version: number) => post(`/companies/${companyId}/offers/${id}/hide`, { version }),
+};
+
 export const adminApi = {
+  setCatalogModerate: (id: number, enabled: boolean) =>
+    request<void>(`/admin/users/${id}/catalog-moderate`, { method: "PUT", body: { enabled } }),
   users: (q: string, signal?: AbortSignal) =>
     request<AdminUser[]>(`/admin/users?q=${encodeURIComponent(q)}`, { signal }),
   setMrx: (id: number, enabled: boolean) =>

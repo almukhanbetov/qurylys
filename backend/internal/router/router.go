@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/qurylys/qurylys/backend/internal/auth"
+	"github.com/qurylys/qurylys/backend/internal/catalog"
 	"github.com/qurylys/qurylys/backend/internal/categories"
 	"github.com/qurylys/qurylys/backend/internal/companies"
 	"github.com/qurylys/qurylys/backend/internal/config"
@@ -19,6 +20,7 @@ import (
 	"github.com/qurylys/qurylys/backend/internal/offers"
 	"github.com/qurylys/qurylys/backend/internal/products"
 	"github.com/qurylys/qurylys/backend/internal/ratelimit"
+	"github.com/qurylys/qurylys/backend/internal/selleroffers"
 	"github.com/qurylys/qurylys/backend/internal/verification"
 )
 
@@ -48,6 +50,12 @@ func New(cfg config.Config, db *sql.DB, log *slog.Logger, sender delivery.Sender
 	companies.NewHandler(companies.NewService(companies.NewRepository(db), limiter), log).Register(v1, authHandler.RequireUser)
 	verification.NewHandler(verification.NewService(verification.NewRepository(db), limiter, sender, log), log).
 		Register(v1, authHandler.RequireUser, authHandler.RequireRole(auth.RoleMRX))
+
+	catalog.NewHandler(catalog.NewService(catalog.NewRepository(db), limiter), log).
+		Register(v1, authHandler.RequireUser, authHandler.RequirePermission(auth.PermCatalogModerate))
+
+	selleroffers.NewHandler(selleroffers.NewService(selleroffers.NewRepository(db), limiter), log).
+		Register(v1, authHandler.RequireUser)
 
 	return r
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { adminApi } from "@/lib/api";
 import { useI18n } from "@/lib/i18n/client";
@@ -9,10 +10,13 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Alert, Card, Field } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/StateMessage";
+import { useMe } from "./MeContext";
 import { QueryState } from "./QueryState";
 
 export function AdminView() {
   const { t } = useI18n();
+  const me = useMe();
+  const router = useRouter();
   const [input, setInput] = useState("");
   const [q, setQ] = useState("");
   const result = useApiQuery(`admin-users:${q}`, (signal) => adminApi.users(q, signal));
@@ -44,6 +48,7 @@ export function AdminView() {
               ) : (
                 <ul className="divide-y divide-ink-100">
                   {users.map((u) => {
+                    const moderator = u.platform_permissions.includes("catalog.moderate");
                     const mrx = u.platform_roles.includes("mrx");
                     return (
                       <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -54,8 +59,10 @@ export function AdminView() {
                             {u.platform_roles.map((r) => (
                               <Badge key={r}>{r === "mrx" ? t.account.mrx : t.account.adminRole}</Badge>
                             ))}
+                            {moderator ? <Badge>{t.catalogRequests.moderator}</Badge> : null}
                           </p>
                         </div>
+                        <div className="flex flex-wrap gap-2">
                         <Button
                           variant="secondary"
                           disabled={pending}
@@ -63,6 +70,21 @@ export function AdminView() {
                         >
                           {mrx ? t.account.revokeMrx : t.account.grantMrx}
                         </Button>
+                        <Button
+                          variant="secondary"
+                          disabled={pending}
+                          onClick={() => {
+                            if (!moderator && u.id === me.id && !window.confirm(t.catalogRequests.confirmSelf)) return;
+                            void run(() => adminApi.setCatalogModerate(u.id, !moderator)).then((ok) => {
+                              if (!ok) return;
+                              result.retry();
+                              if (u.id === me.id) router.refresh();
+                            });
+                          }}
+                        >
+                          {moderator ? t.catalogRequests.revoke : t.catalogRequests.grant}
+                        </Button>
+                        </div>
                       </li>
                     );
                   })}

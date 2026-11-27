@@ -23,8 +23,12 @@ type CategoryRef struct {
 
 // ListItem is a product card in the catalogue list.
 type ListItem struct {
-	ID       int64       `json:"id"`
-	Slug     string      `json:"slug"`
+	ID   int64  `json:"id"`
+	Slug string `json:"slug"`
+	// CatalogNo is the platform article of the card; not the seller's SKU.
+	CatalogNo string `json:"catalog_no"`
+	// GTIN is shown only when confirmed.
+	GTIN     *string     `json:"gtin"`
 	NameKK   string      `json:"name_kk"`
 	NameRU   string      `json:"name_ru"`
 	Brand    *string     `json:"brand"`

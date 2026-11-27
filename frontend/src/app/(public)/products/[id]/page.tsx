@@ -70,6 +70,8 @@ export default async function ProductPage({ params }: Props) {
               {t.product.category}: {pick(locale, product.category.name_kk, product.category.name_ru)}
             </Badge>
             <Badge tone="muted">{t.product.unit}: {unit}</Badge>
+            <Badge tone="muted">{t.catalogRequests.catalogNo}: {product.catalog_no}</Badge>
+            {product.gtin ? <Badge tone="muted">GTIN: {product.gtin}</Badge> : null}
             {product.brand ? <Badge tone="muted">{product.brand}</Badge> : null}
           </div>
 

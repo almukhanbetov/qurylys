@@ -18,11 +18,12 @@ export function Overview() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold wrap-anywhere">{format(t.account.hello, { name: me.full_name })}</h1>
       <p className="text-sm text-ink-600">{t.account.stageText}</p>
-      {me.platform_roles.length > 0 ? (
+      {me.platform_roles.length + me.platform_permissions.length > 0 ? (
         <p className="flex flex-wrap gap-2">
           {me.platform_roles.map((r) => (
             <Badge key={r}>{r === "mrx" ? t.account.mrx : t.account.adminRole}</Badge>
           ))}
+          {me.platform_permissions.includes("catalog.moderate") ? <Badge>{t.catalogRequests.moderator}</Badge> : null}
         </p>
       ) : null}
       {me.pending_invitations > 0 ? (

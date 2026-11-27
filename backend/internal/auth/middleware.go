@@ -62,6 +62,17 @@ func (h *Handler) RequireRole(role string) gin.HandlerFunc {
 	}
 }
 
+// RequirePermission allows only holders of a permission. Use after RequireUser.
+func (h *Handler) RequirePermission(permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !Current(c).Can(permission) {
+			httpx.Fail(c, h.log, errForbidden)
+			return
+		}
+		c.Next()
+	}
+}
+
 // Current returns the principal set by RequireUser (zero value otherwise).
 func Current(c *gin.Context) Principal {
 	p, _ := c.Get(principalKey)

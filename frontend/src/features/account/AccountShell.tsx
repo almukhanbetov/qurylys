@@ -16,6 +16,9 @@ export function AccountShell({ me, children }: { me: Me; children: ReactNode }) 
   const pathname = usePathname();
   const { pending, error, run } = useSubmit();
 
+  const active = me.companies.find((c) => c.id === me.active_company_id);
+  const supplierOwner = active?.role === "owner" && active.is_supplier;
+
   const items = [
     { href: "/account", label: t.account.overview },
     ...(me.active_company_id
@@ -25,6 +28,8 @@ export function AccountShell({ me, children }: { me: Me; children: ReactNode }) 
           { href: "/account/members", label: t.account.members },
         ]
       : []),
+    ...(active?.is_supplier ? [{ href: "/account/offers", label: t.offers.title }] : []),
+    ...(supplierOwner ? [{ href: "/account/catalog-requests", label: t.catalogRequests.title }] : []),
     {
       href: "/account/invitations",
       label: t.account.invitations + (me.pending_invitations ? ` (${me.pending_invitations})` : ""),
@@ -32,6 +37,9 @@ export function AccountShell({ me, children }: { me: Me; children: ReactNode }) 
     { href: "/account/profile", label: t.account.profile },
     { href: "/account/security", label: t.account.security },
     ...(me.platform_roles.includes("mrx") ? [{ href: "/account/mrx", label: t.verification.mrxTitle }] : []),
+    ...(me.platform_permissions.includes("catalog.moderate")
+      ? [{ href: "/account/catalog-moderation", label: t.catalogRequests.moderationTitle }]
+      : []),
     ...(me.platform_roles.includes("admin") ? [{ href: "/account/admin", label: t.account.admin }] : []),
   ];
   const isActive = (href: string) => (href === "/account" ? pathname === href : pathname.startsWith(href));

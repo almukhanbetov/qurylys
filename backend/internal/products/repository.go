@@ -98,7 +98,7 @@ func (r *Repository) List(ctx context.Context, f ListFilter) ([]ListItem, int, e
 
 	limit := b.arg(f.PageSize)
 	offset := b.arg((f.Page - 1) * f.PageSize)
-	listSQL := cte + `SELECT p.id, p.slug, p.name_kk, p.name_ru, p.brand, p.unit, p.is_demo,
+	listSQL := cte + `SELECT p.id, p.slug, p.catalog_no, p.gtin, p.name_kk, p.name_ru, p.brand, p.unit, p.is_demo,
 			cat.id, cat.slug, cat.name_kk, cat.name_ru,
 			os.min_price_tiyn, COALESCE(os.offer_count, 0)
 		FROM products p
@@ -117,7 +117,7 @@ func (r *Repository) List(ctx context.Context, f ListFilter) ([]ListItem, int, e
 	for rows.Next() {
 		var it ListItem
 		var minPrice sql.NullInt64
-		if err := rows.Scan(&it.ID, &it.Slug, &it.NameKK, &it.NameRU, &it.Brand, &it.Unit, &it.IsDemo,
+		if err := rows.Scan(&it.ID, &it.Slug, &it.CatalogNo, &it.GTIN, &it.NameKK, &it.NameRU, &it.Brand, &it.Unit, &it.IsDemo,
 			&it.Category.ID, &it.Category.Slug, &it.Category.NameKK, &it.Category.NameRU,
 			&minPrice, &it.OfferCount); err != nil {
 			return nil, 0, fmt.Errorf("scan product: %w", err)
@@ -143,7 +143,7 @@ func (r *Repository) CategoryExists(ctx context.Context, slug string) (bool, err
 
 func (r *Repository) Get(ctx context.Context, id int64) (*Detail, error) {
 	const q = `
-		SELECT p.id, p.slug, p.name_kk, p.name_ru, p.brand, p.unit, p.is_demo,
+		SELECT p.id, p.slug, p.catalog_no, p.gtin, p.name_kk, p.name_ru, p.brand, p.unit, p.is_demo,
 			cat.id, cat.slug, cat.name_kk, cat.name_ru,
 			os.min_price_tiyn, COALESCE(os.offer_count, 0),
 			p.description_kk, p.description_ru, p.attributes, p.updated_at
@@ -155,7 +155,7 @@ func (r *Repository) Get(ctx context.Context, id int64) (*Detail, error) {
 	var attrs []byte
 	err := r.db.QueryRowContext(ctx, q+offerStatsJoin+`
 		WHERE p.id = $1 AND p.is_active AND cat.is_active`, id).Scan(
-		&d.ID, &d.Slug, &d.NameKK, &d.NameRU, &d.Brand, &d.Unit, &d.IsDemo,
+		&d.ID, &d.Slug, &d.CatalogNo, &d.GTIN, &d.NameKK, &d.NameRU, &d.Brand, &d.Unit, &d.IsDemo,
 		&d.Category.ID, &d.Category.Slug, &d.Category.NameKK, &d.Category.NameRU,
 		&minPrice, &d.OfferCount,
 		&d.DescriptionKK, &d.DescriptionRU, &attrs, &d.UpdatedAt)

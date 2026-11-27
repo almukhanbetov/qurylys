@@ -12,6 +12,9 @@ const (
 	RoleMRX   = "mrx"
 	RoleAdmin = "admin"
 
+	// PermCatalogModerate is a permission, not a role: no role implies it.
+	PermCatalogModerate = "catalog.moderate"
+
 	purposeRegister   = "register"
 	purposeReset      = "reset_password"
 	purposeAddContact = "add_contact"
@@ -40,7 +43,11 @@ type Principal struct {
 	SessionID       int64
 	ActiveCompanyID int64 // 0 = none; always a company the user belongs to
 	Roles           []string
+	Permissions     []string
 }
+
+// Can reports a separately granted permission.
+func (p Principal) Can(permission string) bool { return slices.Contains(p.Permissions, permission) }
 
 func (p Principal) Has(role string) bool { return slices.Contains(p.Roles, role) }
 
@@ -67,6 +74,7 @@ type Me struct {
 	Email              *string      `json:"email"`
 	Phone              *string      `json:"phone"`
 	PlatformRoles      []string     `json:"platform_roles"`
+	Permissions        []string     `json:"platform_permissions"`
 	Companies          []Membership `json:"companies"`
 	ActiveCompanyID    *int64       `json:"active_company_id"`
 	PendingInvitations int          `json:"pending_invitations"`
@@ -86,6 +94,7 @@ type AdminUser struct {
 	Email         *string  `json:"email"`
 	Phone         *string  `json:"phone"`
 	PlatformRoles []string `json:"platform_roles"`
+	Permissions   []string `json:"platform_permissions"`
 }
 
 type challenge struct {

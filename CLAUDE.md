@@ -2,6 +2,12 @@
 
 B2B-маркетплейс строительных материалов для Казахстана. Несколько поставщиков, основной язык интерфейса — казахский, второй — русский.
 
+## Требования (читать перед изменением ролей, доступа и бизнес-логики)
+
+- ТЗ (PDF): `docs/specifications/` (PDF не в git, репозиторий публичный; сверка по SHA-256 из README там же). Роли: `docs/roles-and-permissions.md`. Статус: `docs/requirements-status.md`. Отступления: `docs/spec-deviations.md`. Решения заказчика: `docs/decisions/` (этап 3 — `supplier-stage-3.md`, план — `docs/plans/stage-3-supplier.md`, приёмка — `docs/testing/supplier-stage-3-acceptance.md`; пункты «Доп.» — не требование PDF).
+- Перед изменением ролей, прав, цен, заказов, проверки компаний прочитать эти документы. «Требует уточнения» не додумывать — спросить. `admin` ≠ SA, `owner` ≠ CA.
+- Вместе с поведением обновлять `docs/requirements-status.md`.
+
 ## Стек (не менять без отдельной задачи)
 
 - Backend: Go 1.25 + Gin. БД через `database/sql` + `github.com/jackc/pgx/v5/stdlib`. **Без GORM и lib/pq.**
@@ -22,6 +28,8 @@ B2B-маркетплейс строительных материалов для 
 - Межмодульные зависимости — без циклов (сейчас `products` использует `offers.AvailableCondition`, `companies` использует `auth.Principal`).
 - Доступ: сессии — `internal/auth` (HttpOnly-cookie), CSRF — `middleware.CSRF` на всём `/api/v1`. Любой запрос к данным компании проходит через `companies.Authorize` (членство → активная компания → роль). См. `docs/accounts.md`.
 - Статус проверки компании меняется только через `internal/verification` (и триггеры миграции 00008); список ключевых реквизитов — в триггере, `companies.keyChange`, `verification.keyChanged` и `CompanyForm.KEY_FIELDS`, меняются вместе. Файлы — только через обработчики с проверкой прав.
+- `catalog.moderate` — разрешение (`platform_permissions`), не роль; проверяется в транзакции действия (`auth.HasPermission`). Карточка товара создаётся только одобрением заявки (`internal/catalog`) или seed; GTIN — только подтверждённый.
+- Деньги и количества предложений — `internal/quantity`, `sale_rule_ok` и `frontend/src/lib/quantity.ts` меняются вместе. Опт (`offer_price_tiers`) не читать в публичных запросах. `owner_state = published` не означает публичный показ (docs/catalog.md).
 - Персональные ответы — `Cache-Control: no-store`. Коды, пароли и токены не попадают в логи, аудит и ответы API.
 
 ## Предметная модель

@@ -363,11 +363,7 @@ func (r *Repository) companyFile(ctx context.Context, p auth.Principal, companyI
 
 // conflictSQL is true when user $1 is or was a member of company c, or acted for
 // it. Leaving the company does not lift the conflict.
-const conflictSQL = `(
-	EXISTS (SELECT 1 FROM company_members m WHERE m.company_id = c.id AND m.user_id = $1)
-	OR EXISTS (SELECT 1 FROM audit_events a WHERE a.company_id = c.id AND (
-		(a.actor_user_id = $1 AND a.action IN ('company.created', 'company.member_joined'))
-		OR (a.target_user_id = $1 AND a.action LIKE 'company.member%')))
+const conflictSQL = `(` + companies.InvolvedSQL + `
 	OR EXISTS (SELECT 1 FROM verification_events e WHERE e.company_id = c.id AND e.actor_user_id = $1
 		AND e.action IN ('created', 'submitted')))`
 
